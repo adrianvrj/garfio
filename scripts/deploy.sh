@@ -19,3 +19,12 @@ done
 
 json_set ".launchpad = \"$LAUNCHPAD\" | .meme_wasm = \"$MEME_HASH\" | .deployed_at = \"$(date -u +%FT%TZ)\""
 log "launchpad $LAUNCHPAD"
+
+# Typed TS clients for the app (single files, no extra package to build)
+for pair in "launchpad:launchpad" "rwa_mock:rwa"; do
+  wasm="${pair%%:*}" out="${pair##*:}" tmp="$(mktemp -d)"
+  stellar contract bindings typescript --wasm "$WASM_DIR/$wasm.wasm" --output-dir "$tmp" --overwrite >/dev/null
+  cp "$tmp/src/index.ts" "$ROOT/app/src/contracts/$out.ts"
+  rm -rf "$tmp"
+done
+log "bindings written to app/src/contracts/"

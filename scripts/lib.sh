@@ -27,6 +27,7 @@ json_set() {
   [ -f "$DEPLOY_JSON" ] || echo '{}' >"$DEPLOY_JSON"
   local tmp; tmp="$(mktemp)"
   jq "$1" "$DEPLOY_JSON" >"$tmp" && mv "$tmp" "$DEPLOY_JSON"
+  cp "$DEPLOY_JSON" "$ROOT/app/src/contracts/deployments.json"
 }
 
 invoke() {

@@ -4,5 +4,6 @@ target/
 node_modules/
 .next/
 .env*.local
+!.env.example
 .DS_Store
 test_snapshots/
