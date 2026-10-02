@@ -1,0 +1,1085 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>garfio — plan de infra</title>
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" />
+  <link href="https://cdn.jsdelivr.net/npm/geist@1.3.1/dist/fonts/geist-sans/style.min.css" rel="stylesheet" />
+  <link href="https://cdn.jsdelivr.net/npm/geist@1.3.1/dist/fonts/geist-mono/style.min.css" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #fafafa;
+      --fg: #0a0a0a;
+      --muted: #525252;
+      --line: #e5e5e5;
+      --soft: #f5f5f5;
+      --ink: #171717;
+      --white: #ffffff;
+      --focus: #0a0a0a;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      font-family: "Geist Sans", Geist, ui-sans-serif, system-ui, sans-serif;
+      background:
+        radial-gradient(ellipse 80% 50% at 50% -20%, #e8e8e8 0%, transparent 55%),
+        linear-gradient(180deg, #ffffff 0%, var(--bg) 40%, #f0f0f0 100%);
+      color: var(--fg);
+      line-height: 1.55;
+      min-height: 100vh;
+    }
+
+    .wrap {
+      max-width: 920px;
+      margin: 0 auto;
+      padding: 48px 20px 96px;
+    }
+
+    header.hero {
+      padding: 32px 0 40px;
+      border-bottom: 1px solid var(--line);
+      margin-bottom: 40px;
+      animation: rise 0.7s ease both;
+    }
+
+    .brand {
+      font-size: clamp(40px, 8vw, 72px);
+      font-weight: 600;
+      letter-spacing: -0.06em;
+      line-height: 1;
+      margin: 0 0 16px;
+    }
+
+    .tagline {
+      font-size: 18px;
+      color: var(--muted);
+      max-width: 36em;
+      margin: 0 0 24px;
+    }
+
+    .meta-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 16px;
+      font-family: "Geist Mono", ui-monospace, monospace;
+      font-size: 12px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    nav.toc {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin: 28px 0 0;
+    }
+
+    nav.toc a {
+      color: var(--fg);
+      text-decoration: none;
+      border: 1px solid var(--line);
+      background: var(--white);
+      padding: 8px 12px;
+      font-size: 13px;
+      transition: background 0.15s, border-color 0.15s, transform 0.15s;
+    }
+
+    nav.toc a:hover {
+      background: var(--soft);
+      border-color: #ccc;
+      transform: translateY(-1px);
+    }
+
+    section {
+      margin: 56px 0;
+      animation: rise 0.6s ease both;
+    }
+
+    h2 {
+      font-size: 28px;
+      letter-spacing: -0.03em;
+      margin: 0 0 8px;
+      font-weight: 600;
+    }
+
+    .lede {
+      color: var(--muted);
+      margin: 0 0 24px;
+      max-width: 42em;
+    }
+
+    h3 {
+      font-size: 16px;
+      margin: 28px 0 10px;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+    }
+
+    p { margin: 0 0 14px; max-width: 48em; }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+
+    @media (max-width: 700px) {
+      .grid-2 { grid-template-columns: 1fr; }
+    }
+
+    .block {
+      border: 1px solid var(--line);
+      background: var(--white);
+      padding: 18px 18px 16px;
+    }
+
+    .block h4 {
+      margin: 0 0 6px;
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .block p, .block li {
+      font-size: 14px;
+      color: var(--ink);
+      margin: 0;
+    }
+
+    .block ul {
+      margin: 8px 0 0;
+      padding-left: 18px;
+    }
+
+    .block li { margin-bottom: 4px; }
+
+    .kicker {
+      font-family: "Geist Mono", ui-monospace, monospace;
+      font-size: 11px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+
+    /* Interactive flow */
+    .sim {
+      border: 1px solid var(--line);
+      background: var(--white);
+      overflow: hidden;
+    }
+
+    .sim-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--line);
+      background: var(--soft);
+      flex-wrap: wrap;
+    }
+
+    .sim-head strong {
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .steps {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .step-dot {
+      width: 28px;
+      height: 28px;
+      border: 1px solid var(--line);
+      background: var(--white);
+      font-size: 12px;
+      font-family: "Geist Mono", monospace;
+      cursor: pointer;
+      display: grid;
+      place-items: center;
+      transition: background 0.15s, color 0.15s, border-color 0.15s;
+    }
+
+    .step-dot.active, .step-dot.done {
+      background: var(--fg);
+      color: var(--white);
+      border-color: var(--fg);
+    }
+
+    .step-dot.done:not(.active) {
+      opacity: 0.55;
+    }
+
+    .sim-body {
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      min-height: 320px;
+    }
+
+    @media (max-width: 700px) {
+      .sim-body { grid-template-columns: 1fr; }
+    }
+
+    .sim-main {
+      padding: 24px 20px;
+      border-right: 1px solid var(--line);
+    }
+
+    @media (max-width: 700px) {
+      .sim-main { border-right: none; border-bottom: 1px solid var(--line); }
+    }
+
+    .sim-main h3 {
+      margin: 0 0 8px;
+      font-size: 22px;
+      letter-spacing: -0.03em;
+    }
+
+    .sim-main p {
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .sim-side {
+      padding: 20px;
+      background: #fcfcfc;
+      font-size: 13px;
+    }
+
+    .ledger {
+      font-family: "Geist Mono", monospace;
+      font-size: 12px;
+      line-height: 1.7;
+      margin: 0;
+      white-space: pre-wrap;
+    }
+
+    .sim-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 20px;
+      flex-wrap: wrap;
+    }
+
+    button {
+      font-family: inherit;
+      font-size: 13px;
+      border: 1px solid var(--fg);
+      background: var(--fg);
+      color: var(--white);
+      padding: 10px 14px;
+      cursor: pointer;
+      transition: opacity 0.15s, transform 0.15s;
+    }
+
+    button:hover { opacity: 0.88; transform: translateY(-1px); }
+    button.ghost {
+      background: var(--white);
+      color: var(--fg);
+    }
+    button:disabled {
+      opacity: 0.35;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    /* Architecture layers */
+    .layers {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .layer {
+      border: 1px solid var(--line);
+      background: var(--white);
+      padding: 14px 16px;
+      display: grid;
+      grid-template-columns: 140px 1fr;
+      gap: 12px;
+      align-items: start;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
+    }
+
+    .layer:hover, .layer.open {
+      background: var(--soft);
+      border-color: #ccc;
+    }
+
+    .layer.open {
+      box-shadow: inset 3px 0 0 var(--fg);
+    }
+
+    .layer-name {
+      font-weight: 600;
+      font-size: 13px;
+      letter-spacing: -0.02em;
+    }
+
+    .layer-body {
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .layer-detail {
+      display: none;
+      grid-column: 1 / -1;
+      margin-top: 4px;
+      padding-top: 12px;
+      border-top: 1px dashed var(--line);
+      font-size: 13px;
+      color: var(--ink);
+    }
+
+    .layer.open .layer-detail { display: block; }
+
+    .chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 10px;
+    }
+
+    .chip {
+      font-family: "Geist Mono", monospace;
+      font-size: 11px;
+      border: 1px solid var(--line);
+      padding: 4px 8px;
+      background: var(--white);
+    }
+
+    /* Cost table */
+    table.costs {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+      background: var(--white);
+      border: 1px solid var(--line);
+    }
+
+    table.costs th, table.costs td {
+      text-align: left;
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--line);
+      vertical-align: top;
+    }
+
+    table.costs th {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--muted);
+      font-weight: 500;
+      background: var(--soft);
+    }
+
+    table.costs tr:last-child td { border-bottom: none; }
+    table.costs td.num {
+      font-family: "Geist Mono", monospace;
+      white-space: nowrap;
+    }
+
+    .cost-toggle {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 14px;
+      flex-wrap: wrap;
+    }
+
+    .cost-toggle button {
+      background: var(--white);
+      color: var(--fg);
+      border-color: var(--line);
+    }
+
+    .cost-toggle button.on {
+      background: var(--fg);
+      color: var(--white);
+      border-color: var(--fg);
+    }
+
+    .total-bar {
+      margin-top: 12px;
+      padding: 14px 16px;
+      border: 1px solid var(--fg);
+      background: var(--fg);
+      color: var(--white);
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      font-size: 14px;
+    }
+
+    .total-bar strong {
+      font-family: "Geist Mono", monospace;
+      font-size: 18px;
+      letter-spacing: -0.02em;
+    }
+
+    .note {
+      font-size: 13px;
+      color: var(--muted);
+      margin-top: 12px;
+    }
+
+    .phases {
+      display: grid;
+      gap: 10px;
+    }
+
+    .phase {
+      border: 1px solid var(--line);
+      background: var(--white);
+      padding: 16px;
+      display: grid;
+      grid-template-columns: 72px 1fr;
+      gap: 14px;
+    }
+
+    .phase .n {
+      font-family: "Geist Mono", monospace;
+      font-size: 28px;
+      font-weight: 500;
+      letter-spacing: -0.04em;
+      line-height: 1;
+    }
+
+    .phase h4 { margin: 0 0 4px; font-size: 15px; }
+    .phase p { margin: 0; font-size: 13px; color: var(--muted); }
+
+    .compare {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+    }
+
+    @media (max-width: 800px) {
+      .compare { grid-template-columns: 1fr; }
+    }
+
+    .model {
+      border: 1px solid var(--line);
+      background: var(--white);
+      padding: 16px;
+      position: relative;
+      transition: border-color 0.15s, transform 0.15s;
+    }
+
+    .model.pick {
+      border-color: var(--fg);
+      border-width: 2px;
+      padding: 15px;
+    }
+
+    .model .badge {
+      font-family: "Geist Mono", monospace;
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      border: 1px solid var(--fg);
+      display: inline-block;
+      padding: 3px 6px;
+      margin-bottom: 8px;
+    }
+
+    .model h4 { margin: 0 0 6px; font-size: 15px; }
+    .model p { font-size: 13px; color: var(--muted); margin: 0 0 10px; }
+    .model ul { margin: 0; padding-left: 16px; font-size: 13px; }
+    .model li { margin-bottom: 3px; }
+
+    .diagram {
+      border: 1px solid var(--line);
+      background: var(--white);
+      padding: 20px 16px;
+      overflow-x: auto;
+    }
+
+    .flow-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: center;
+      min-width: 640px;
+    }
+
+    .node {
+      border: 1px solid var(--fg);
+      padding: 10px 12px;
+      font-size: 12px;
+      text-align: center;
+      min-width: 88px;
+      background: var(--white);
+      transition: background 0.2s, color 0.2s;
+    }
+
+    .node.hl {
+      background: var(--fg);
+      color: var(--white);
+      animation: pulse 0.45s ease;
+    }
+
+    .arrow {
+      font-family: "Geist Mono", monospace;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .flow-caption {
+      text-align: center;
+      margin-top: 14px;
+      font-size: 13px;
+      color: var(--muted);
+      min-height: 1.4em;
+    }
+
+    footer {
+      margin-top: 64px;
+      padding-top: 24px;
+      border-top: 1px solid var(--line);
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    @keyframes rise {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: none; }
+    }
+
+    @keyframes pulse {
+      0% { transform: scale(1); }
+      40% { transform: scale(1.04); }
+      100% { transform: scale(1); }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="hero">
+      <p class="brand">garfio</p>
+      <p class="tagline">
+        Memecoins con backend de RWAs en Stellar — misma lógica que Robinhood Stock Tokens:
+        exposición económica 1:1 a activos reales, UX de meme coin.
+      </p>
+      <div class="meta-row">
+        <span>Plan de infraestructura</span>
+        <span>·</span>
+        <span>Borrador v0.1</span>
+        <span>·</span>
+        <span>Branding TBD</span>
+      </div>
+      <nav class="toc" aria-label="Secciones">
+        <a href="#idea">Idea</a>
+        <a href="#modelo">Modelo</a>
+        <a href="#flujo">Flujo interactivo</a>
+        <a href="#arquitectura">Arquitectura</a>
+        <a href="#stack">Stack</a>
+        <a href="#costos">Costos</a>
+        <a href="#fases">Fases</a>
+        <a href="#riesgos">Riesgos</a>
+      </nav>
+    </header>
+
+    <section id="idea">
+      <h2>La idea en una frase</h2>
+      <p class="lede">Compras un meme. Detrás hay un activo real custodiado. Puedes vender o redimir.</p>
+
+      <div class="grid-2">
+        <div class="block">
+          <div class="kicker">Lo que ve el usuario</div>
+          <h4>Feed de memecoins</h4>
+          <p>Tickers divertidos, charts, social, buy/sell en un tap. Parece un launchpad de memes, no un bróker aburrido.</p>
+        </div>
+        <div class="block">
+          <div class="kicker">Lo que hay debajo</div>
+          <h4>RWA 1:1 (estilo Robinhood)</h4>
+          <p>Cada token está respaldado por acciones/ETFs/tesoros reales (o por RWA ya tokenizados en Stellar). Mint/burn contra colateral. Prueba de reservas pública.</p>
+        </div>
+      </div>
+
+      <h3>Cómo lo hace Robinhood (referencia)</h3>
+      <ul>
+        <li>Stock Tokens = deuda tokenizada respaldada 1:1 por acciones en custodio.</li>
+        <li>Exposición económica, no derechos de voto del accionista.</li>
+        <li>Mint/burn en mercado primario (participantes autorizados); secundaria en DEX/RFQ.</li>
+        <li>Dividendos vía multiplicador on-chain, no payout en cash.</li>
+        <li>Restricciones jurisdiccionales / KYC fuertes.</li>
+      </ul>
+      <p class="note">garfio copia esa mecánica en Stellar, con packaging de meme coin. No copiamos su chain (Arbitrum L2); usamos Stellar classic assets + Soroban donde haga falta.</p>
+    </section>
+
+    <section id="modelo">
+      <h2>Tres caminos de producto</h2>
+      <p class="lede">Recomendación: empezar híbrido (B→A) para salir vivo sin esperar licencia de emisor.</p>
+
+      <div class="compare">
+        <div class="model">
+          <span class="badge">A · Emisor</span>
+          <h4>Somos el Robinhood</h4>
+          <p>Emitimos el token. Compramos acciones reales vía bróker/custodio. Max control, max compliance.</p>
+          <ul>
+            <li>Licencia / entidad (ej. Jersey-like)</li>
+            <li>Custodio + auditor</li>
+            <li>Más lento y caro</li>
+          </ul>
+        </div>
+        <div class="model">
+          <span class="badge">B · Wrapper</span>
+          <h4>Sobre RWAs existentes</h4>
+          <p>Memes = baskets o wrappers sobre Benji / Ondo / WisdomTree (ya viven en Stellar).</p>
+          <ul>
+            <li>MVP más rápido</li>
+            <li>Dependes de terceros</li>
+            <li>Menos “meme stock” puro</li>
+          </ul>
+        </div>
+        <div class="model pick">
+          <span class="badge">C · Híbrido ★</span>
+          <h4>Lo que montamos primero</h4>
+          <p>Fase 1: wrappers + USDC pools. Fase 2: emisión propia con custodio cuando el legal cierre.</p>
+          <ul>
+            <li>Ship UX ya</li>
+            <li>Misma arquitectura de mint/redeem</li>
+            <li>Camino a issuer completo</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section id="flujo">
+      <h2>Flujo punta a punta</h2>
+      <p class="lede">Dale play o salta entre pasos. Verás la wallet del usuario, el ledger de garfio y lo que pasa on-chain.</p>
+
+      <div class="diagram" style="margin-bottom:16px">
+        <div class="flow-row" id="flowNodes">
+          <div class="node" data-n="0">Usuario</div>
+          <span class="arrow">→</span>
+          <div class="node" data-n="1">App</div>
+          <span class="arrow">→</span>
+          <div class="node" data-n="2">API</div>
+          <span class="arrow">→</span>
+          <div class="node" data-n="3">Anchor / USDC</div>
+          <span class="arrow">→</span>
+          <div class="node" data-n="4">Mint meme</div>
+          <span class="arrow">→</span>
+          <div class="node" data-n="5">RWA / Custodio</div>
+          <span class="arrow">→</span>
+          <div class="node" data-n="6">DEX</div>
+        </div>
+        <p class="flow-caption" id="flowCaption">Listo para simular.</p>
+      </div>
+
+      <div class="sim">
+        <div class="sim-head">
+          <strong>Simulador de viaje</strong>
+          <div class="steps" id="stepDots"></div>
+        </div>
+        <div class="sim-body">
+          <div class="sim-main">
+            <div class="kicker" id="simKicker">Paso 1</div>
+            <h3 id="simTitle">Conectar wallet</h3>
+            <p id="simText"></p>
+            <div class="sim-actions">
+              <button type="button" id="btnPrev" class="ghost">Anterior</button>
+              <button type="button" id="btnNext">Siguiente</button>
+              <button type="button" id="btnPlay" class="ghost">Auto-play</button>
+            </div>
+          </div>
+          <div class="sim-side">
+            <div class="kicker">Estado en vivo</div>
+            <pre class="ledger" id="simLedger"></pre>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="arquitectura">
+      <h2>Arquitectura (capas)</h2>
+      <p class="lede">Click en cada capa para ver qué entra y qué sale. De arriba (usuario) a abajo (cadena / custodio).</p>
+
+      <div class="layers" id="layers"></div>
+    </section>
+
+    <section id="stack">
+      <h2>Qué vamos a montar</h2>
+      <p class="lede">Stack concreto para el monorepo. Branding luego; UI en blanco/negro + Geist.</p>
+
+      <div class="grid-2">
+        <div class="block">
+          <div class="kicker">Frontend</div>
+          <h4>Next.js (App Router) + Freighter</h4>
+          <ul>
+            <li>Explorar memes, buy/sell, portfolio</li>
+            <li>SEP-10 auth (challenge firmado)</li>
+            <li>SEP-24 webview para depositar fiat</li>
+            <li>Charts + proof-of-reserves badge</li>
+          </ul>
+        </div>
+        <div class="block">
+          <div class="kicker">Backend</div>
+          <h4>API + workers</h4>
+          <ul>
+            <li>Catálogo de memes / metadata</li>
+            <li>Orquestación mint/redeem</li>
+            <li>KYC status + allowlists</li>
+            <li>Jobs: hedge, PoR snapshots, corporate actions</li>
+          </ul>
+        </div>
+        <div class="block">
+          <div class="kicker">On-chain Stellar</div>
+          <h4>Assets + Soroban thin layer</h4>
+          <ul>
+            <li>Stellar Asset por meme (issuer + distributor)</li>
+            <li>Flags: AUTH_REQUIRED + REVOCABLE + CLAWBACK</li>
+            <li>SAC para DeFi (Soroswap / Aquarius)</li>
+            <li>Contrato vault/basket (SEP-56 vibe) opcional</li>
+            <li>Oracle: Reflector</li>
+          </ul>
+        </div>
+        <div class="block">
+          <div class="kicker">Off-chain / partners</div>
+          <h4>Dinero real y cumplimiento</h4>
+          <ul>
+            <li>Anchor USDC (SEP-24) on/off-ramp</li>
+            <li>Custodio / bróker (fase A) o RWA nativos (Benji, Ondo, WisdomTree)</li>
+            <li>KYC: Persona / Sumsub</li>
+            <li>DB: Postgres · object storage · secrets</li>
+          </ul>
+        </div>
+      </div>
+
+      <h3>Cuentas Stellar clave</h3>
+      <div class="chips">
+        <span class="chip">Issuer (cold)</span>
+        <span class="chip">Distributor / minter</span>
+        <span class="chip">Treasury USDC</span>
+        <span class="chip">Reserve RWA</span>
+        <span class="chip">Fee sink</span>
+        <span class="chip">Ops hot wallet</span>
+      </div>
+    </section>
+
+    <section id="costos">
+      <h2>Costos probables</h2>
+      <p class="lede">Rangos mensuales en USD. Legal/custodio dominan si vamos a emisor propio. Cambia el escenario.</p>
+
+      <div class="cost-toggle" id="costToggle">
+        <button type="button" data-s="mvp" class="on">MVP (wrapper)</button>
+        <button type="button" data-s="growth">Growth</button>
+        <button type="button" data-s="issuer">Issuer completo</button>
+      </div>
+
+      <table class="costs">
+        <thead>
+          <tr>
+            <th>Partida</th>
+            <th>Qué es</th>
+            <th>USD / mes</th>
+          </tr>
+        </thead>
+        <tbody id="costBody"></tbody>
+      </table>
+      <div class="total-bar">
+        <span id="costLabel">Total estimado · MVP</span>
+        <strong id="costTotal">—</strong>
+      </div>
+      <p class="note">
+        Stellar fees de red son irrelevantes (~fracciones de centavo). Lo caro es: gente, KYC, custody/legal, y liquidez inicial del book.
+        Setup one-shot no incluido arriba: entidad legal + abogados RWA (~$25k–$150k+), audit de contratos (~$15k–$40k), seed liquidity ($50k–$250k).
+      </p>
+    </section>
+
+    <section id="fases">
+      <h2>Fases de build</h2>
+      <p class="lede">Orden pensado para aprender el loop mint→trade→redeem antes de pelearse con licencias.</p>
+      <div class="phases">
+        <div class="phase">
+          <div class="n">01</div>
+          <div>
+            <h4>Testnet playground</h4>
+            <p>Issuer demo, 3 memes fake-backed por USDC, UI buy/sell, Freighter, PoR fake. Validar UX meme + redención.</p>
+          </div>
+        </div>
+        <div class="phase">
+          <div class="n">02</div>
+          <div>
+            <h4>Mainnet wrapper</h4>
+            <p>Integrar USDC + 1–2 RWAs live (ej. treasury token). SEP-24 deposit. Allowlist KYC light. Liquidity en Soroswap/Aquarius.</p>
+          </div>
+        </div>
+        <div class="phase">
+          <div class="n">03</div>
+          <div>
+            <h4>Issuer path</h4>
+            <p>Entidad + custodio. Mint de stock-memes 1:1. Multiplicador de dividendos. Auditoría + PoR atestado. Markets secundarios.</p>
+          </div>
+        </div>
+        <div class="phase">
+          <div class="n">04</div>
+          <div>
+            <h4>Social + composability</h4>
+            <p>Launchpad comunitario (bajo reglas), collateral en lending (Blend), referrals, creator fees — siempre con backstop RWA.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="riesgos">
+      <h2>Riesgos (sin sugarcoat)</h2>
+      <div class="grid-2">
+        <div class="block">
+          <h4>Regulatorio</h4>
+          <p>Stock tokens suelen ser valores / deuda. No se ofrecen a US persons sin registro. KYC + geo-fence desde día 1.</p>
+        </div>
+        <div class="block">
+          <h4>Custodia / peg</h4>
+          <p>Si el RWA no está, el meme es humo. PoR diario + clawback + pausas de mint. Nunca prometer “acción real” sin custodio.</p>
+        </div>
+        <div class="block">
+          <h4>Liquidez</h4>
+          <p>Sin market makers el secondary muere. Presupuesto de seed liquidity + RFQ/MM partnership.</p>
+        </div>
+        <div class="block">
+          <h4>Oráculo / corporate actions</h4>
+          <p>Splits y dividendos rompen UX si no hay multiplicador. Copiar patrón Robinhood (uiMultiplier) en metadata + oracle.</p>
+        </div>
+      </div>
+    </section>
+
+    <footer>
+      Artefacto de planificación para <strong>garfio</strong> — memecoins backed by RWAs on Stellar.
+      Branding se define después. Este doc es el mapa; el código de producto arranca en fase 01.
+    </footer>
+  </div>
+
+  <script>
+    const STEPS = [
+      {
+        title: "Conectar wallet",
+        text: "El usuario abre garfio y conecta Freighter (o wallet SEP-10). Firmamos un challenge: ya tenemos identidad on-chain sin passwords.",
+        nodes: [0, 1],
+        caption: "Usuario ↔ App · SEP-10",
+        ledger: "wallet: GABC…CONNECTED\nkyc: unknown\nusdc: 0\nmeme: 0"
+      },
+      {
+        title: "Depositar plata",
+        text: "Via SEP-24 el anchor abre un webview: KYC si hace falta + transferencia bancaria/card. El usuario recibe USDC en Stellar.",
+        nodes: [1, 2, 3],
+        caption: "Fiat → Anchor → USDC en wallet",
+        ledger: "wallet: GABC…\nkyc: pending→verified\nusdc: 500\nmeme: 0"
+      },
+      {
+        title: "Elegir un meme",
+        text: "En el feed elige p.ej. $GATO respaldado por un RWA (tesoro / equity tokenizada). Ve precio oracle + ratio de reserva.",
+        nodes: [1, 2],
+        caption: "Catálogo + Reflector price",
+        ledger: "selected: GATO\nbacking: WTGXX (treasury RWA)\noracle: $1.00\npor_ratio: 100.4%"
+      },
+      {
+        title: "Comprar (mint primario)",
+        text: "La app arma una tx: usuario manda USDC al treasury. El minter emite GATO 1:1 (o al NAV). Off-chain, el desk compra/asegura el RWA equivalente.",
+        nodes: [1, 2, 4, 5],
+        caption: "USDC in → mint meme → hedge RWA",
+        ledger: "tx: PATH_PAYMENT / CONTRACT\nusdc: 500 → 0\ngato: 0 → 500\nreserve_rwa: +500 NAV\npor_ratio: 100.2%"
+      },
+      {
+        title: "Tradear en secundaria",
+        text: "Puede swappear en Soroswap/Aquarius o en el orderbook Stellar. El meme circula como asset clásico; SAC lo hace usable en DeFi.",
+        nodes: [0, 4, 6],
+        caption: "Secondary liquidity · DEX",
+        ledger: "venue: soroswap\nswap: 50 GATO → 51 USDC\nspot vs nav: +2%\nmeme_supply: unchanged"
+      },
+      {
+        title: "Redimir / cash out",
+        text: "Burn de GATO → USDC al NAV (ventana de mercado). O vende en DEX y hace withdraw SEP-24 a banco. Clawback listo si compliance lo exige.",
+        nodes: [0, 2, 3, 4, 5],
+        caption: "Burn → USDC → fiat out",
+        ledger: "burn: 450 GATO\nusdc_out: 450\nrwa_sold: 450 NAV\nkyc_withdraw: ok\npor_ratio: 100.1%"
+      }
+    ];
+
+    const LAYERS = [
+      {
+        name: "Cliente",
+        body: "Web app meme-first. Charts, feed, buy/sell, PoR.",
+        detail: "Next.js + Geist B/N. Wallet kit (Freighter). Sin cards decorativas de más: una acción clara por pantalla. Motion suave en feed y confirmaciones de tx."
+      },
+      {
+        name: "API / Auth",
+        body: "Orquesta órdenes, KYC, metadata y jobs.",
+        detail: "SEP-10 sessions. Endpoints: /memes, /quote, /mint, /redeem, /por. Workers: hedge sync, oracle watchdog, daily attestation. Postgres para off-chain state; firmas on-chain son source of truth del supply."
+      },
+      {
+        name: "Rails fiat",
+        body: "Anchor SEP-24 · USDC in/out.",
+        detail: "No reinventamos banking. Un anchor regulado maneja KYC + dinero. Nosotros solo vemos USDC llegar/salir en cuentas Stellar del usuario."
+      },
+      {
+        name: "Issuance",
+        body: "Stellar Assets + flags de compliance.",
+        detail: "Issuer cold + distributor hot. AUTH_REQUIRED / REVOCABLE / CLAWBACK (docs Stellar). stellar.toml (SEP-1) con metadata del meme y link al backing. SAC deploy para usar el asset en Soroban."
+      },
+      {
+        name: "RWA desk",
+        body: "Custodio o RWAs nativos en Stellar.",
+        detail: "MVP: reserva en USDC + tokens tipo Benji/Ondo/WisdomTree. Issuer path: bróker compra equities, custodio las guarda, nosotros emitimos el meme 1:1. Attestación diaria publicada."
+      },
+      {
+        name: "Mercados",
+        body: "Primario mint/burn · secundario DEX.",
+        detail: "Primario: solo contra treasury (NAV). Secundario: Soroswap / Aquarius / orderbook. Oráculos Reflector para NAV y circuit breakers si spot diverge demasiado."
+      }
+    ];
+
+    const COSTS = {
+      mvp: {
+        label: "Total estimado · MVP (wrapper)",
+        rows: [
+          ["Hosting / CDN", "Vercel o similar + previews", "20–80"],
+          ["DB + storage", "Postgres (Neon) + blobs + logs", "25–120"],
+          ["RPC / indexación", "Horizon/RPC + indexer ligero", "0–150"],
+          ["KYC", "Persona/Sumsub pay-as-you-go (~$1–3/user)", "50–400"],
+          ["Anchor / on-ramp", "Fees % volume (no flat); budget ops", "100–500"],
+          ["Oracle / monitoring", "Reflector + uptime + alerts", "0–80"],
+          ["Dev (1–2 eng)", "Part-time / contractor", "4,000–12,000"],
+          ["Legal light", "ToS, geo policy, counsel retainer", "500–2,000"],
+          ["Liquidity seed*", "Amortizado / mes (capital at risk)", "500–2,000"]
+        ]
+      },
+      growth: {
+        label: "Total estimado · Growth",
+        rows: [
+          ["Hosting / CDN", "Prod + edge + observability", "80–250"],
+          ["DB + storage", "HA Postgres + backups", "100–400"],
+          ["RPC / indexación", "Dedicated + custom indexer", "150–600"],
+          ["KYC", "Volumen medio (cientos users/mes)", "400–2,000"],
+          ["Anchor / on-ramp", "Mayor volumen, mejores rates", "300–1,500"],
+          ["MM / liquidity*", "Inventory + spreads", "2,000–10,000"],
+          ["Dev (2–4)", "Full-stack + smart contracts", "12,000–35,000"],
+          ["Compliance ops", "Analyst + tools", "2,000–6,000"],
+          ["Legal / entity", "Retainer cross-border", "2,000–8,000"],
+          ["Audit reserve", "Amortización anual / 12", "1,500–4,000"]
+        ]
+      },
+      issuer: {
+        label: "Total estimado · Issuer completo",
+        rows: [
+          ["Todo lo de Growth", "Base operativa", "20,000–60,000"],
+          ["Custodio / bróker", "Cuentas, fees, mínimas", "3,000–15,000"],
+          ["Security agent / PoR", "Attestation + auditor externo", "2,000–10,000"],
+          ["Licencias / entity opex", "Jersey-like / local equivalent", "5,000–25,000"],
+          ["Insurance / reserves", "E&O / float buffer", "2,000–12,000"],
+          ["Market makers", "Retainer + inventory", "5,000–25,000"]
+        ]
+      }
+    };
+
+    // Steps UI
+    let step = 0;
+    let timer = null;
+    const dots = document.getElementById("stepDots");
+    STEPS.forEach((_, i) => {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "step-dot";
+      b.textContent = String(i + 1);
+      b.addEventListener("click", () => { stopPlay(); go(i); });
+      dots.appendChild(b);
+    });
+
+    function go(i) {
+      step = i;
+      const s = STEPS[i];
+      document.getElementById("simKicker").textContent = "Paso " + (i + 1) + " / " + STEPS.length;
+      document.getElementById("simTitle").textContent = s.title;
+      document.getElementById("simText").textContent = s.text;
+      document.getElementById("simLedger").textContent = s.ledger;
+      document.getElementById("flowCaption").textContent = s.caption;
+      document.getElementById("btnPrev").disabled = i === 0;
+      document.getElementById("btnNext").textContent = i === STEPS.length - 1 ? "Reiniciar" : "Siguiente";
+
+      [...dots.children].forEach((d, idx) => {
+        d.classList.toggle("active", idx === i);
+        d.classList.toggle("done", idx <= i);
+      });
+
+      document.querySelectorAll("#flowNodes .node").forEach((n) => {
+        const id = Number(n.dataset.n);
+        n.classList.toggle("hl", s.nodes.includes(id));
+      });
+    }
+
+    function stopPlay() {
+      if (timer) { clearInterval(timer); timer = null; }
+      document.getElementById("btnPlay").textContent = "Auto-play";
+    }
+
+    document.getElementById("btnPrev").onclick = () => { stopPlay(); go(Math.max(0, step - 1)); };
+    document.getElementById("btnNext").onclick = () => {
+      stopPlay();
+      if (step >= STEPS.length - 1) go(0);
+      else go(step + 1);
+    };
+    document.getElementById("btnPlay").onclick = () => {
+      if (timer) { stopPlay(); return; }
+      document.getElementById("btnPlay").textContent = "Pausar";
+      timer = setInterval(() => {
+        if (step >= STEPS.length - 1) go(0);
+        else go(step + 1);
+      }, 2800);
+    };
+
+    // Layers
+    const layersEl = document.getElementById("layers");
+    LAYERS.forEach((L, idx) => {
+      const el = document.createElement("div");
+      el.className = "layer" + (idx === 0 ? " open" : "");
+      el.innerHTML = `
+        <div class="layer-name">${L.name}</div>
+        <div class="layer-body">${L.body}</div>
+        <div class="layer-detail">${L.detail}</div>
+      `;
+      el.addEventListener("click", () => {
+        const open = el.classList.contains("open");
+        [...layersEl.children].forEach((c) => c.classList.remove("open"));
+        if (!open) el.classList.add("open");
+      });
+      layersEl.appendChild(el);
+    });
+
+    // Costs
+    function renderCosts(key) {
+      const c = COSTS[key];
+      const body = document.getElementById("costBody");
+      body.innerHTML = c.rows.map(([a, b, n]) =>
+        `<tr><td>${a}</td><td>${b}</td><td class="num">${n}</td></tr>`
+      ).join("");
+      document.getElementById("costLabel").textContent = c.label;
+      const nums = c.rows.map(r => r[2].split("–").map(x => Number(String(x).replace(/,/g, ""))));
+      const lo = nums.reduce((s, p) => s + p[0], 0);
+      const hi = nums.reduce((s, p) => s + p[1], 0);
+      document.getElementById("costTotal").textContent =
+        "$" + lo.toLocaleString("en-US") + " – $" + hi.toLocaleString("en-US") + " / mes";
+    }
+
+    document.getElementById("costToggle").addEventListener("click", (e) => {
+      const btn = e.target.closest("button[data-s]");
+      if (!btn) return;
+      [...e.currentTarget.children].forEach((b) => b.classList.toggle("on", b === btn));
+      renderCosts(btn.dataset.s);
+    });
+
+    go(0);
+    renderCosts("mvp");
+  </script>
+</body>
+</html>
