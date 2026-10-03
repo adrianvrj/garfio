@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
+import { createPortal } from "react-dom";
 import { useWallet } from "@/lib/wallet/WalletProvider";
 import { useProfile } from "@/lib/profile";
 import { explain } from "@/lib/errors";
@@ -60,9 +61,10 @@ export function Header() {
         </div>
       </div>
 
-      {drawer && w.address && <ProfileDrawer onClose={() => setDrawer(false)} />}
+      {/* Portaled: the sticky header's backdrop-filter would trap position:fixed children. */}
+      {drawer && w.address && createPortal(<ProfileDrawer onClose={() => setDrawer(false)} />, document.body)}
 
-      {login && (
+      {login && createPortal(
         <div className="modal-bg" onClick={() => setLogin(false)}>
           <div className="modal" role="dialog" aria-label="Entrar" onClick={(e) => e.stopPropagation()}>
             <h3 style={{ fontSize: 18 }}>Entrar a Garfio</h3>
@@ -98,7 +100,8 @@ export function Header() {
             </p>
             {err && <div className="err">{err}</div>}
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
     </header>
   );

@@ -23,9 +23,9 @@ function King({ row }: { row: MarketRow }) {
   const { m, v, progress } = row;
   return (
     <Link href={`/m/${m.id}`} className="king">
-      <TokenArt seed={artSeed(m)} size={120} rounded={12} />
+      <TokenArt seed={artSeed(m)} size={120} />
       <div className="stack" style={{ gap: 6, minWidth: 0 }}>
-        <span className="king-label">👑 Rey de la colina · la más cerca de graduar</span>
+        <span className="section-title">Rey de la colina · la más cerca de graduar</span>
         <h2>
           ${m.symbol} <span className="ink2" style={{ fontWeight: 400 }}>{m.name}</span>
         </h2>
@@ -39,7 +39,7 @@ function King({ row }: { row: MarketRow }) {
       <div className="stats">
         <div className="between">
           <span className="muted">Market cap</span>
-          <b className="num buy">{usd(v.mcapUsd, 0)}</b>
+          <b className="num">{usd(v.mcapUsd, 0)}</b>
         </div>
         <div className="between">
           <span className="muted">Reserva en {v.pair?.symbol}</span>

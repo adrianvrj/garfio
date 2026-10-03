@@ -11,7 +11,7 @@ export function DemoControls() {
   if (!demo) return null;
   return (
     <aside className="demo" aria-label="Mover el mundo real">
-      <b style={{ color: "var(--warn)" }}>Demo · mover el mundo real</b>
+      <span className="section-title">Demo · mover el mundo real</span>
       <div className="row">
         <button className="btn sm" onClick={() => p.advance(30)}>+30 días</button>
         <button className="btn sm" onClick={() => p.advance(365)}>+1 año</button>

@@ -42,7 +42,7 @@ export function Chart({ points }: { points: number[] }) {
         g.stroke();
         g.fillText("$" + compact(v), w - R + 6, yy + 3);
       }
-      const fg = css("--buy");
+      const fg = css("--ink");
       const path = () => {
         g.beginPath();
         d.forEach((v, i) => (i ? g.lineTo(x(i), y(v)) : g.moveTo(x(i), y(v))));

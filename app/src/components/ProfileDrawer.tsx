@@ -153,7 +153,7 @@ export function ProfileDrawer({ onClose }: { onClose: () => void }) {
               {holdings.map(({ m, bal, v }) => (
                 <Link key={m.id} href={`/m/${m.id}`} onClick={onClose}>
                   <span className="row">
-                    <TokenArt seed={artSeed(m)} size={32} rounded={6} />
+                    <TokenArt seed={artSeed(m)} size={32} />
                     <span>
                       <b>${m.symbol}</b>
                       <span className="muted small" style={{ display: "block" }}>{compact(fromUnits(bal))}</span>
@@ -177,7 +177,7 @@ export function ProfileDrawer({ onClose }: { onClose: () => void }) {
                 return (
                   <div key={m.id}>
                     <Link href={`/m/${m.id}`} onClick={onClose} className="row">
-                      <TokenArt seed={artSeed(m)} size={32} rounded={6} />
+                      <TokenArt seed={artSeed(m)} size={32} />
                       <b>${m.symbol}</b>
                     </Link>
                     <span className="row">

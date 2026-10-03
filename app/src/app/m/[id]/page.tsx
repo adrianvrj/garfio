@@ -71,9 +71,9 @@ export default function CoinPage() {
 
   return (
     <div className="coin">
-      <div style={{ minWidth: 0 }}>
+      <div className="coin-main">
         <div className="coin-head">
-          <TokenArt seed={artSeed(m)} size={72} rounded={12} />
+          <TokenArt seed={artSeed(m)} size={72} />
           <div className="stack" style={{ gap: 4, minWidth: 0 }}>
             <h1>
               ${m.symbol} <span className="ink2" style={{ fontWeight: 400 }}>{m.name}</span>
@@ -100,7 +100,7 @@ export default function CoinPage() {
         </div>
 
         <div className="coin-stats">
-          <div><span className="k">Market cap</span><span className="v buy">{usd(v.mcapUsd, 0)}</span></div>
+          <div><span className="k">Market cap</span><span className="v">{usd(v.mcapUsd, 0)}</span></div>
           <div><span className="k">Precio</span><span className="v">${tiny(v.priceUsd)}</span></div>
           <div><span className="k">Reserva</span><span className="v">{usd(v.reserveUsd, 0)}</span></div>
           <div><span className="k">Trades 24 h</span><span className="v">{trades.data ? trades.data.length : "…"}</span></div>

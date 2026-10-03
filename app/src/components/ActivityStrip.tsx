@@ -12,26 +12,26 @@ export function ActivityStrip() {
   const { rows, activity } = useMarket();
   const bySymbol = new Map(rows.map((r) => [r.m.id, r]));
   const trades = [...(activity.data ?? [])].reverse().slice(0, 24);
-  if (!trades.length) return <div className="activity" style={{ height: 45 }} />;
+  if (!trades.length) return <div className="activity" style={{ height: 32 }} />;
 
-  const items = trades.map((t, i) => {
+  const items = trades.map((t) => {
     const r = bySymbol.get(t.meme);
     const pair = r?.v.pair;
     return (
       <Link
         key={t.id}
         href={`/m/${t.meme}`}
-        className={`act ${t.isBuy ? "is-buy" : "is-sell"} ${i === 0 ? "fresh" : ""}`}
+        className="act"
       >
         <Identity address={t.trader} size={20} />
-        <span className={t.isBuy ? "buy" : "sell"}>{t.isBuy ? "compró" : "vendió"}</span>
+        <span>{t.isBuy ? "▲ compró" : "▼ vendió"}</span>
         <span className="num">
           {t.isBuy
             ? `${fmt(fromUnits(t.pairAmt), pair?.decimals ?? 2)} ${pair?.symbol ?? ""}`
             : `${compact(fromUnits(t.memeAmt))}`}
         </span>
         <span>de</span>
-        {r && <TokenArt seed={artSeed(r.m)} size={18} rounded={4} />}
+        {r && <TokenArt seed={artSeed(r.m)} size={18} />}
         <b>${r?.m.symbol ?? "…"}</b>
       </Link>
     );

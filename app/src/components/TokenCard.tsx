@@ -22,7 +22,7 @@ export function TokenCard({ row, now }: { row: MarketRow; now: number }) {
   const { m, v, progress, trades, lastAt } = row;
   return (
     <Link href={`/m/${m.id}`} className="card">
-      <TokenArt seed={artSeed(m)} size={96} rounded={10} />
+      <TokenArt seed={artSeed(m)} size={96} />
       <div className="stack" style={{ gap: 6, minWidth: 0 }}>
         <div className="title">
           <b>${m.symbol}</b>

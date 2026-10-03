@@ -44,7 +44,7 @@ export default function Create() {
   return (
     <div className="create">
       <form className="panel stack" style={{ gap: 18 }} onSubmit={submit}>
-        <h1 style={{ fontSize: 22 }}>Crear moneda</h1>
+        <h1>Crear moneda</h1>
         <div className="row" style={{ gap: 12, alignItems: "stretch" }}>
           <label className="field" style={{ flex: 2 }}>
             <span>Nombre</span>
@@ -94,7 +94,7 @@ export default function Create() {
         <span className="section-title">Así se verá</span>
         <div className="panel stack">
           <div className="row" style={{ gap: 12 }}>
-            <TokenArt seed={artSeed({ symbol: sym || "TACO", name: name || "Taco Coin" })} size={96} rounded={10} />
+            <TokenArt seed={artSeed({ symbol: sym || "TACO", name: name || "Taco Coin" })} size={96} />
             <div className="stack" style={{ gap: 4, minWidth: 0 }}>
               <b style={{ fontSize: 16 }}>${sym || "TACO"}</b>
               <span className="ink2">{name || "Taco Coin"}</span>
