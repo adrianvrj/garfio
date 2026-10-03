@@ -8,7 +8,7 @@ export const EXPLORER = "https://stellar.expert/explorer/testnet";
 export const CAVOS_APP_ID = process.env.NEXT_PUBLIC_CAVOS_APP_ID ?? "";
 /** Cavos console environment: origins and gas pool are configured per environment. */
 export const CAVOS_ENV: "development" | "production" =
-  process.env.NEXT_PUBLIC_CAVOS_ENV === "production" ? "production" : "development";
+  process.env.NEXT_PUBLIC_CAVOS_ENV === "development" ? "development" : "production";
 
 export const LAUNCHPAD_ID = deployments.launchpad;
 export const DEPLOYED_AT = Date.parse(deployments.deployed_at);
