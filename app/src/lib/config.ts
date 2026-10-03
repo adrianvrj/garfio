@@ -6,6 +6,9 @@ export const RPC_URL = process.env.NEXT_PUBLIC_RPC_URL ?? "https://soroban-testn
 export const FRIENDBOT_URL = "https://friendbot.stellar.org";
 export const EXPLORER = "https://stellar.expert/explorer/testnet";
 export const CAVOS_APP_ID = process.env.NEXT_PUBLIC_CAVOS_APP_ID ?? "";
+/** Cavos console environment: origins and gas pool are configured per environment. */
+export const CAVOS_ENV: "development" | "production" =
+  process.env.NEXT_PUBLIC_CAVOS_ENV === "production" ? "production" : "development";
 
 export const LAUNCHPAD_ID = deployments.launchpad;
 export const DEPLOYED_AT = Date.parse(deployments.deployed_at);
