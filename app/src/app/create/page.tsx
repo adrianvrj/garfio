@@ -4,30 +4,33 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { calls, txReturn } from "@/lib/chain";
 import { PAIRS } from "@/lib/config";
+import { artSeed } from "@/lib/avatar";
 import { explain } from "@/lib/errors";
+import { fmt } from "@/lib/units";
 import { useWallet } from "@/lib/wallet/WalletProvider";
-import { useBalances } from "@/hooks/useMarket";
 import { useTx } from "@/hooks/useTx";
-import { WalletPanel } from "@/components/WalletPanel";
+import { TokenArt } from "@/components/Art";
+import { Identity } from "@/components/Identity";
 import { TxLog } from "@/components/TxLink";
 
 export default function Create() {
   const router = useRouter();
   const w = useWallet();
   const tx = useTx();
-  const balances = useBalances(w.address);
-  const [name, setName] = useState("Aguacate");
-  const [symbol, setSymbol] = useState("AGUA");
+  const [name, setName] = useState("");
+  const [symbol, setSymbol] = useState("");
   const [pair, setPair] = useState(PAIRS[0].id);
   const [step, setStep] = useState("");
 
+  const sym = symbol.trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
+  const p = PAIRS.find((x) => x.id === pair)!;
+
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (!w.address) return tx.setError("Conecta una wallet primero.");
-    const sym = symbol.trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
-    if (!name.trim() || !sym) return tx.setError("Falta nombre o ticker.");
-    setStep("Desplegando el token SEP-41…");
-    const hash = await tx.send(calls.create(w.address, name.trim(), sym, pair), `launchpad.create("${name.trim()}", "${sym}")`);
+    if (!w.address) return tx.setError("Entra con tu wallet primero (arriba a la derecha).");
+    if (!name.trim() || !sym) return tx.setError("Ponle nombre y ticker.");
+    setStep("Desplegando tu token…");
+    const hash = await tx.send(calls.create(w.address, name.trim(), sym, pair), `creaste $${sym}`);
     if (!hash) return setStep("");
     try {
       const meme = await txReturn<string>(hash);
@@ -39,35 +42,74 @@ export default function Create() {
   }
 
   return (
-    <div className="grid2" style={{ marginTop: 28 }}>
-      <form className="panel" onSubmit={submit}>
-        <h2 className="display" style={{ fontSize: 40 }}>Crear memecoin</h2>
-        <p className="muted" style={{ margin: 0 }}>
-          Se despliega un token SEP-41 con 1B de supply fijo: 800M se venden en la curva. Tú eliges el RWA que respalda la
-          reserva y cobras 0.5% de cada compra y venta.
-        </p>
-        <label className="f">Nombre<input className="txt" value={name} maxLength={32} onChange={(e) => setName(e.target.value)} /></label>
-        <label className="f">Ticker<input className="txt" value={symbol} maxLength={12} onChange={(e) => setSymbol(e.target.value)} /></label>
-        <label className="f">
-          Par
-          <select className="txt" value={pair} onChange={(e) => setPair(e.target.value)}>
-            {PAIRS.map((p) => (
-              <option key={p.id} value={p.id}>{p.symbol} · {p.label}</option>
+    <div className="create">
+      <form className="panel stack" style={{ gap: 18 }} onSubmit={submit}>
+        <h1 style={{ fontSize: 22 }}>Crear moneda</h1>
+        <div className="row" style={{ gap: 12, alignItems: "stretch" }}>
+          <label className="field" style={{ flex: 2 }}>
+            <span>Nombre</span>
+            <input className="input" value={name} maxLength={32} placeholder="Taco Coin" onChange={(e) => setName(e.target.value)} />
+          </label>
+          <label className="field" style={{ flex: 1 }}>
+            <span>Ticker</span>
+            <input className="input" value={symbol} maxLength={12} placeholder="TACO" onChange={(e) => setSymbol(e.target.value)} />
+          </label>
+        </div>
+
+        <div className="field">
+          <span>Respaldo de la reserva</span>
+          <div className="pair-pick" role="radiogroup">
+            {PAIRS.map((x) => (
+              <button
+                key={x.id}
+                type="button"
+                role="radio"
+                aria-checked={pair === x.id}
+                className="pair-opt"
+                onClick={() => setPair(x.id)}
+              >
+                <span className="dot" />
+                <span>
+                  <b>{x.symbol}</b> <span className="muted">· {x.name}</span>
+                  <span className="small ink2" style={{ display: "block" }}>{x.label}</span>
+                </span>
+                {x.yieldPct !== null ? (
+                  <span className="badge yield">+{fmt(x.yieldPct, 1)}%</span>
+                ) : (
+                  <span className="badge">acción</span>
+                )}
+              </button>
             ))}
-          </select>
-        </label>
-        <button className="go" type="submit" disabled={tx.busy || !!step}>
-          {step || "Crear (launchpad.create)"}
+          </div>
+        </div>
+
+        <button className="btn primary block lg" type="submit" disabled={tx.busy || !!step}>
+          {step || "Crear moneda"}
         </button>
         <div className="err" role="status">{tx.error}</div>
         <TxLog log={tx.log} />
       </form>
-      <div className="panel">
-        <div className="eyebrow">Fondos de prueba</div>
-        <p className="muted" style={{ margin: 0, fontSize: 14 }}>
-          Crear es gratis. Para comprar necesitas el RWA del par: pide tCETES, tUSTRY o tNVDA al faucet.
-        </p>
-        <WalletPanel balances={balances.data} onDone={balances.refresh} />
+
+      <div className="stack">
+        <span className="section-title">Así se verá</span>
+        <div className="panel stack">
+          <div className="row" style={{ gap: 12 }}>
+            <TokenArt seed={artSeed({ symbol: sym || "TACO", name: name || "Taco Coin" })} size={96} rounded={10} />
+            <div className="stack" style={{ gap: 4, minWidth: 0 }}>
+              <b style={{ fontSize: 16 }}>${sym || "TACO"}</b>
+              <span className="ink2">{name || "Taco Coin"}</span>
+              {w.address && <span className="small muted row">por <Identity address={w.address} size={16} /></span>}
+              <span className="row"><span className="badge">{p.symbol}</span></span>
+            </div>
+          </div>
+          <div className="progress"><i style={{ width: "0%" }} /></div>
+        </div>
+        <div className="panel stack small ink2" style={{ gap: 8 }}>
+          <span>• Supply fijo de 1B: 800M se venden en la curva.</span>
+          <span>• La reserva se guarda en {p.symbol}, no en XLM.</span>
+          <span>• Cobras 0.5% de cada compra y venta.</span>
+          <span>• La imagen se genera del ticker y el nombre.</span>
+        </div>
       </div>
     </div>
   );

@@ -1,77 +1,122 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { useMemes, useValuation } from "@/hooks/useMarket";
-import { gradProgress } from "@/lib/curve";
-import { compact, fmt, tiny, usd } from "@/lib/units";
-import { fromUnits } from "@/lib/units";
+import { artSeed } from "@/lib/avatar";
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import { Suspense, useState } from "react";
+import { useMarket, type MarketRow } from "@/hooks/useMarket";
+import { PAIRS } from "@/lib/config";
+import { compact, fmt, fromUnits, usd } from "@/lib/units";
+import { TokenArt } from "@/components/Art";
+import { Identity } from "@/components/Identity";
+import { PairBadge, TokenCard } from "@/components/TokenCard";
 
-export default function Market() {
-  const router = useRouter();
-  const { data: memes, error } = useMemes();
-  const value = useValuation();
+const SORTS = {
+  activity: { label: "Actividad", fn: (a: MarketRow, b: MarketRow) => b.lastAt - a.lastAt },
+  new: { label: "Nuevas", fn: (a: MarketRow, b: MarketRow) => Number(b.m.created_at - a.m.created_at) },
+  mcap: { label: "Market cap", fn: (a: MarketRow, b: MarketRow) => b.v.mcapUsd - a.v.mcapUsd },
+  grad: { label: "Por graduar", fn: (a: MarketRow, b: MarketRow) => b.progress - a.progress },
+} as const;
+type SortKey = keyof typeof SORTS;
 
-  const rows = (memes ?? [])
-    .map((m) => ({ m, v: value(m) }))
-    .sort((a, b) => b.v.mcapUsd - a.v.mcapUsd);
-  const locked = rows.reduce((s, { m, v }) => s + fromUnits(m.real_pair) * v.pairUsd, 0);
+function King({ row }: { row: MarketRow }) {
+  const { m, v, progress } = row;
+  return (
+    <Link href={`/m/${m.id}`} className="king">
+      <TokenArt seed={artSeed(m)} size={120} rounded={12} />
+      <div className="stack" style={{ gap: 6, minWidth: 0 }}>
+        <span className="king-label">👑 Rey de la colina · la más cerca de graduar</span>
+        <h2>
+          ${m.symbol} <span className="ink2" style={{ fontWeight: 400 }}>{m.name}</span>
+        </h2>
+        <div className="row small muted">
+          creada por <Identity address={m.creator} size={16} />
+        </div>
+        <div className="row" style={{ flexWrap: "wrap" }}>
+          <PairBadge row={row} />
+        </div>
+      </div>
+      <div className="stats">
+        <div className="between">
+          <span className="muted">Market cap</span>
+          <b className="num buy">{usd(v.mcapUsd, 0)}</b>
+        </div>
+        <div className="between">
+          <span className="muted">Reserva en {v.pair?.symbol}</span>
+          <span className="num">{compact(fromUnits(m.real_pair))} · {usd(v.reserveUsd, 0)}</span>
+        </div>
+        <div className="progress"><i style={{ width: `${progress}%` }} /></div>
+        <span className="small muted">{fmt(progress, 1)}% de la curva vendida</span>
+      </div>
+    </Link>
+  );
+}
+
+function Market() {
+  const q = (useSearchParams().get("q") ?? "").toLowerCase();
+  const { rows, memes } = useMarket();
+  const [sort, setSort] = useState<SortKey>("activity");
+  const [pair, setPair] = useState<string | null>(null);
+  const [now] = useState(() => Date.now());
+
+  const king = [...rows].filter((r) => !r.m.graduated).sort(SORTS.grad.fn)[0];
+  const shown = rows
+    .filter((r) => !pair || r.m.pair === pair)
+    .filter((r) => !q || r.m.symbol.toLowerCase().includes(q) || r.m.name.toLowerCase().includes(q))
+    .sort(SORTS[sort].fn);
+  const locked = rows.reduce((s, r) => s + r.v.reserveUsd, 0);
 
   return (
     <>
-      <section className="hero">
-        <div>
-          <div className="eyebrow">Stellar testnet · launchpad</div>
-          <h1>Memecoins<br />respaldadas por RWAs</h1>
-          <p>
-            Cada memecoin guarda su reserva en un activo real tokenizado (CETES, tesoro de EE. UU. o NVDA), no en XLM.
-            Si el activo rinde, la meme sube con él.
-          </p>
-        </div>
-        <div style={{ textAlign: "right" }}>
-          <div className="eyebrow">Valor en RWAs bloqueado</div>
-          <div className="display" style={{ fontSize: 48 }}>{usd(locked, 0)}</div>
-          <div className="eyebrow">{rows.length} memecoins</div>
-        </div>
-      </section>
+      {king && !q && <King row={king} />}
 
-      <div className="tblwrap">
-        <table>
-          <thead>
-            <tr>
-              <th>Meme</th>
-              <th>Par</th>
-              <th className="r">Precio USD</th>
-              <th className="r">Market cap</th>
-              <th className="r">Reserva</th>
-              <th>Graduación</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map(({ m, v }) => {
-              const g = gradProgress(m);
-              return (
-                <tr key={m.id} onClick={() => router.push(`/m/${m.id}`)}>
-                  <td>
-                    <a className="tk" href={`/m/${m.id}`} onClick={(e) => e.preventDefault()}>${m.symbol}</a>{" "}
-                    <span className="muted">{m.name}</span>
-                  </td>
-                  <td><span className="tag">{v.pair?.symbol}</span></td>
-                  <td className="r num">${tiny(v.priceUsd)}</td>
-                  <td className="r num">{usd(v.mcapUsd, 0)}</td>
-                  <td className="r num">{compact(fromUnits(m.real_pair))} {v.pair?.symbol}</td>
-                  <td className="num">
-                    <span className="minibar"><i style={{ width: `${g}%` }} /></span>
-                    {m.graduated ? "graduada" : fmt(g, 0) + "%"}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-        {!memes && !error && <div className="empty">Leyendo el contrato…</div>}
-        {memes && !rows.length && <div className="empty">Todavía no hay memecoins. Crea la primera.</div>}
-        {error && <div className="empty err">No pude leer el RPC: {error}</div>}
+      <div className="toolbar">
+        <div className="chips" role="group" aria-label="Ordenar">
+          {(Object.keys(SORTS) as SortKey[]).map((k) => (
+            <button key={k} className="chip" aria-pressed={sort === k} onClick={() => setSort(k)}>
+              {SORTS[k].label}
+            </button>
+          ))}
+        </div>
+        <div className="row">
+          <div className="chips" role="group" aria-label="Filtrar por respaldo">
+            <button className="chip" aria-pressed={pair === null} onClick={() => setPair(null)}>Todos</button>
+            {PAIRS.map((p) => (
+              <button key={p.id} className="chip" aria-pressed={pair === p.id} onClick={() => setPair(p.id)}>
+                {p.symbol}
+              </button>
+            ))}
+          </div>
+          <span className="muted small hide-sm">{usd(locked, 0)} en RWAs</span>
+        </div>
       </div>
+
+      {q && <p className="muted" style={{ marginBottom: 12 }}>Resultados para “{q}”</p>}
+
+      {memes.loading ? (
+        <div className="grid">
+          {Array.from({ length: 6 }, (_, i) => <div key={i} className="skeleton" style={{ height: 120 }} />)}
+        </div>
+      ) : memes.error ? (
+        <div className="empty">No pude leer el contrato: {memes.error}</div>
+      ) : shown.length ? (
+        <div className="grid">
+          {shown.map((r) => <TokenCard key={r.m.id} row={r} now={now} />)}
+        </div>
+      ) : (
+        <div className="empty">
+          {q ? `Ninguna meme coincide con “${q}”.` : "Todavía no hay memes con este respaldo."}
+          <Link href="/create" className="btn primary">Crea la primera</Link>
+        </div>
+      )}
     </>
+  );
+}
+
+export default function Page() {
+  return (
+    <Suspense>
+      <Market />
+    </Suspense>
   );
 }

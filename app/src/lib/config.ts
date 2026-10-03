@@ -24,17 +24,23 @@ export interface PairInfo {
   /** Quick-buy chips in pair units. */
   quick: string[];
   decimals: number;
+  /** Annual yield shown on screen, or null when the pair tracks a price. */
+  yieldPct: number | null;
+  name: string;
+  /** Virtual starting reserve of the curve, in base units. */
+  vPair0: bigint;
 }
 
-const META: Record<PairSymbol, Omit<PairInfo, "symbol" | "id">> = {
-  tCETES: { label: "bonos MX · rinde ~7% anual", faucet: 1000, quick: ["10", "100", "500"], decimals: 2 },
-  tUSTRY: { label: "tesoro EE. UU. · rinde ~4% anual", faucet: 1000, quick: ["10", "100", "500"], decimals: 2 },
-  tNVDA: { label: "sigue a la acción de NVIDIA", faucet: 5, quick: ["0.1", "0.5", "2"], decimals: 4 },
+const META: Record<PairSymbol, Omit<PairInfo, "symbol" | "id" | "vPair0">> = {
+  tCETES: { name: "CETES", label: "bonos MX · rinde ~7% anual", faucet: 1000, quick: ["10", "100", "500"], decimals: 2, yieldPct: 7 },
+  tUSTRY: { name: "Tesoro EE. UU.", label: "tesoro EE. UU. · rinde ~4% anual", faucet: 1000, quick: ["10", "100", "500"], decimals: 2, yieldPct: 4.2 },
+  tNVDA: { name: "NVIDIA", label: "sigue a la acción de NVIDIA", faucet: 5, quick: ["0.1", "0.5", "2"], decimals: 4, yieldPct: null },
 };
 
 export const PAIRS: PairInfo[] = (Object.keys(deployments.pairs) as PairSymbol[]).map((symbol) => ({
   symbol,
   id: deployments.pairs[symbol].id,
+  vPair0: BigInt(deployments.pairs[symbol].v_pair0),
   ...META[symbol],
 }));
 

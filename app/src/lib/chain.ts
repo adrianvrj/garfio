@@ -98,6 +98,7 @@ export async function txReturn<T>(hash: string): Promise<T> {
 // ---------- events → chart ----------
 
 export interface TradePoint {
+  meme: string;
   ledger: number;
   at: number; // ms
   isBuy: boolean;
@@ -107,19 +108,20 @@ export interface TradePoint {
   vPair: bigint;
   vToken: bigint;
   txHash: string;
+  id: string;
 }
 
 const tradeTopic = xdr.ScVal.scvSymbol("trade").toXDR("base64");
 
 /**
- * Trade events for one meme, oldest first, from the last ~24 h. The RPC scans a
- * limited ledger window per request, so we follow the cursor until we reach the tip.
+ * Trade events from the last ~24 h, oldest first: one meme's, or every meme's when
+ * `meme` is omitted. The RPC scans a limited ledger window per request, so we
+ * follow the cursor until we reach the tip.
  */
-export async function fetchTrades(meme: string): Promise<TradePoint[]> {
+export async function fetchTrades(meme?: string): Promise<TradePoint[]> {
   const latest = await server.getLatestLedger();
-  const filters: rpc.Api.EventFilter[] = [
-    { type: "contract", contractIds: [LAUNCHPAD_ID], topics: [[tradeTopic, addr(meme).toXDR("base64")]] },
-  ];
+  const topics = [meme ? [tradeTopic, addr(meme).toXDR("base64")] : [tradeTopic, "*"]];
+  const filters: rpc.Api.EventFilter[] = [{ type: "contract", contractIds: [LAUNCHPAD_ID], topics }];
   let startLedger = Math.max(1, latest.sequence - 17_280);
   const events: rpc.Api.EventResponse[] = [];
   let res: rpc.Api.GetEventsResponse;
@@ -142,6 +144,7 @@ export async function fetchTrades(meme: string): Promise<TradePoint[]> {
   return events.map((ev) => {
     const v = scValToNative(ev.value) as Record<string, unknown>;
     return {
+      meme: scValToNative(ev.topic[1]) as string,
       ledger: ev.ledger,
       at: Date.parse(ev.ledgerClosedAt),
       isBuy: v.is_buy as boolean,
@@ -151,6 +154,17 @@ export async function fetchTrades(meme: string): Promise<TradePoint[]> {
       vPair: v.v_pair as bigint,
       vToken: v.v_token as bigint,
       txHash: ev.txHash,
+      id: ev.id,
     };
   });
+}
+
+/** Net meme balance per trader, from trade events (ignores plain transfers). */
+export function holdersFromTrades(trades: TradePoint[]): { address: string; amount: bigint }[] {
+  const net = new Map<string, bigint>();
+  for (const t of trades) net.set(t.trader, (net.get(t.trader) ?? 0n) + (t.isBuy ? t.memeAmt : -t.memeAmt));
+  return [...net.entries()]
+    .filter(([, a]) => a > 0n)
+    .map(([address, amount]) => ({ address, amount }))
+    .sort((a, b) => (b.amount > a.amount ? 1 : -1));
 }

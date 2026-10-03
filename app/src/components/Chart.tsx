@@ -31,7 +31,7 @@ export function Chart({ points }: { points: number[] }) {
       const y = (v: number) => pad + (1 - (v - lo) / (hi - lo || 1)) * (h - pad * 2);
       g.strokeStyle = css("--line");
       g.lineWidth = 1;
-      g.font = "10px " + css("--mono");
+      g.font = "11px " + css("--mono");
       g.fillStyle = css("--muted");
       for (let k = 0; k <= 3; k++) {
         const v = lo + ((hi - lo) * k) / 3;
@@ -42,7 +42,7 @@ export function Chart({ points }: { points: number[] }) {
         g.stroke();
         g.fillText("$" + compact(v), w - R + 6, yy + 3);
       }
-      const fg = css("--fg");
+      const fg = css("--buy");
       const path = () => {
         g.beginPath();
         d.forEach((v, i) => (i ? g.lineTo(x(i), y(v)) : g.moveTo(x(i), y(v))));

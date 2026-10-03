@@ -23,11 +23,13 @@ export function TradePanel({
   meme,
   pair,
   memeBalance,
+  pairBalance,
   onDone,
 }: {
   meme: Meme;
   pair: PairInfo;
   memeBalance: bigint;
+  pairBalance: bigint | null;
   onDone: () => void;
 }) {
   const w = useWallet();
@@ -106,44 +108,57 @@ export function TradePanel({
   }
 
   const quick = buy
-    ? pair.quick.map((q) => ({ label: q, value: q }))
+    ? pair.quick.map((q) => ({ label: `${q} ${pair.symbol}`, value: q }))
     : ["25%", "50%", "100%"].map((p) => ({
         label: p,
         value: String((fromUnits(memeBalance) * parseInt(p)) / 100),
       }));
 
   return (
-    <div className="trade">
+    <div className="panel stack">
       <div className="seg" role="group" aria-label="Acción">
-        <button aria-pressed={buy} onClick={() => { setSide("buy"); setAmount(pair.quick[1]); }}>Comprar</button>
-        <button aria-pressed={!buy} onClick={() => { setSide("sell"); setAmount(String(Math.floor(fromUnits(memeBalance)))); }}>Vender</button>
+        <button className="is-buy" aria-pressed={buy} onClick={() => { setSide("buy"); setAmount(pair.quick[1]); }}>Comprar</button>
+        <button className="is-sell" aria-pressed={!buy} onClick={() => { setSide("sell"); setAmount(String(Math.floor(fromUnits(memeBalance)))); }}>Vender</button>
       </div>
-      <label className="f">
-        {buy ? `Pagas en ${pair.symbol}` : `Vendes $${meme.symbol}`}
-        <input className="amt" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} />
+      <label className="field">
+        <span className="between">
+          <span>{buy ? `Pagas en ${pair.symbol}` : `Vendes $${meme.symbol}`}</span>
+          {w.address && (
+            <span className="num muted">
+              saldo {buy ? (pairBalance === null ? "…" : fmt(fromUnits(pairBalance), pair.decimals)) : compact(fromUnits(memeBalance))}
+            </span>
+          )}
+        </span>
+        <input className="input big" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} />
       </label>
-      <div className="quick">
+      <div className="chips">
         {quick.map((q) => (
-          <button key={q.label} type="button" onClick={() => setAmount(q.value)}>{q.label}</button>
+          <button key={q.label} type="button" className="chip" onClick={() => setAmount(q.value)}>{q.label}</button>
         ))}
       </div>
-      <div className="rows">
-        <div><span>Fee 1%</span><span className="num">{quote ? `${fmt(quote.fee, pair.decimals)} ${pair.symbol}` : "–"}</span></div>
-        <div><span>Al creador (0.5%)</span><span className="num">{quote ? `${fmt(quote.fee / 2, pair.decimals)} ${pair.symbol}` : "–"}</span></div>
+      <div className="quote">
         <div>
           <span>Recibes</span>
-          <span className="num">
+          <b className="num">
             {quote ? (buy ? `${compact(quote.out)} $${meme.symbol}` : `${fmt(quote.out, pair.decimals)} ${pair.symbol}`) : "–"}
-          </span>
+          </b>
         </div>
         <div><span>Impacto en precio</span><span className="num">{quote ? (quote.impact >= 0 ? "+" : "") + fmt(quote.impact, 2) + "%" : "–"}</span></div>
+        <div><span>Fee 1% (0.5% al creador)</span><span className="num">{quote ? `${fmt(quote.fee, pair.decimals)} ${pair.symbol}` : "–"}</span></div>
         {buy && quote?.charged !== undefined && quote.charged < Number(amount) && (
           <div><span>Se cobra (llena la curva)</span><span className="num">{fmt(quote.charged, pair.decimals)} {pair.symbol}</span></div>
         )}
       </div>
-      <button className="go" onClick={go} disabled={tx.busy || meme.graduated}>
-        {meme.graduated ? "Graduada" : tx.busy ? "Firmando…" : `${buy ? "Comprar" : "Vender"} $${meme.symbol}`}
-      </button>
+      {w.address ? (
+        <button className={`btn block lg ${buy ? "buy-btn" : "sell-btn"}`} onClick={go} disabled={tx.busy || meme.graduated}>
+          {meme.graduated ? "Graduada" : tx.busy ? "Firmando…" : `${buy ? "Comprar" : "Vender"} $${meme.symbol}`}
+        </button>
+      ) : (
+        <p className="muted small">Entra con tu wallet (arriba a la derecha) para operar.</p>
+      )}
+      {buy && w.address && pairBalance === 0n && (
+        <p className="small ink2">No tienes {pair.symbol}. Pídelo al faucet desde tu perfil.</p>
+      )}
       <div className="err" role="status">{tx.error}</div>
       <TxLog log={tx.log} />
     </div>

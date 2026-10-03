@@ -1,13 +1,12 @@
 import type { Metadata } from "next";
-import { Anton, Familjen_Grotesk, JetBrains_Mono } from "next/font/google";
+import { Familjen_Grotesk, JetBrains_Mono } from "next/font/google";
 import { Suspense } from "react";
 import { Providers } from "./providers";
 import { Header } from "@/components/Header";
-import { Tape } from "@/components/Tape";
+import { ActivityStrip } from "@/components/ActivityStrip";
 import { DemoControls } from "@/components/DemoControls";
 import "./globals.css";
 
-const anton = Anton({ weight: "400", subsets: ["latin"], variable: "--font-anton" });
 const familjen = Familjen_Grotesk({ subsets: ["latin"], variable: "--font-familjen" });
 const jetbrains = JetBrains_Mono({ subsets: ["latin"], variable: "--font-jetbrains" });
 
@@ -18,14 +17,14 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="es" className={`${anton.variable} ${familjen.variable} ${jetbrains.variable}`}>
+    <html lang="es" className={`${familjen.variable} ${jetbrains.variable}`}>
       <body>
         <Providers>
-          <Tape />
-          <div className="wrap">
+          <Suspense>
             <Header />
-            {children}
-          </div>
+          </Suspense>
+          <ActivityStrip />
+          <main className="wrap">{children}</main>
           <Suspense>
             <DemoControls />
           </Suspense>

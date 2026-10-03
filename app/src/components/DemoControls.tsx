@@ -11,18 +11,18 @@ export function DemoControls() {
   if (!demo) return null;
   return (
     <aside className="demo" aria-label="Mover el mundo real">
-      <div className="eyebrow">Mover el mundo real · demo</div>
-      <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-        <button className="btn" onClick={() => p.advance(30)}>+30 días</button>
-        <button className="btn" onClick={() => p.advance(365)}>+1 año</button>
+      <b style={{ color: "var(--warn)" }}>Demo · mover el mundo real</b>
+      <div className="row">
+        <button className="btn sm" onClick={() => p.advance(30)}>+30 días</button>
+        <button className="btn sm" onClick={() => p.advance(365)}>+1 año</button>
       </div>
-      <div className="num" style={{ fontSize: 12 }}>
+      <div className="num small ink2">
         Día {fmt(p.days(), 0)} · tCETES {usd(p.usd("tCETES"), 4)} · tUSTRY {usd(p.usd("tUSTRY"), 4)}
       </div>
-      <label className="f">
+      <label className="field">
         <span>
-          NVDA <span style={{ color: "var(--fg)" }}>{usd(p.nvda)}</span>
-          {p.nvdaLive && <> · real {usd(p.nvdaLive)}</>}
+          NVDA <b className="num">{usd(p.nvda)}</b>
+          {p.nvdaLive && <span className="muted"> · real {usd(p.nvdaLive)}</span>}
         </span>
         <input
           type="range"
@@ -33,9 +33,7 @@ export function DemoControls() {
           onChange={(e) => p.setNvdaOverride(Number(e.target.value))}
         />
       </label>
-      <p className="muted" style={{ fontSize: 12, margin: 0 }}>
-        Solo cambia el valor en USD del par. La curva y las reservas on-chain no se mueven.
-      </p>
+      <p className="muted small">Solo cambia el valor en USD del par. La curva on-chain no se mueve.</p>
     </aside>
   );
 }
