@@ -118,10 +118,19 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   }, []);
 
   // The email magic link opens in a new tab, which is the one that signs in. This tab hears it
-  // through the shared storage and reconnects, instead of waiting for a reload.
+  // through the shared storage and reconnects, instead of waiting for a reload. Only a change of
+  // user counts: Cavos rewrites the identity on every restore, and remounting on each write
+  // ping-pongs between open tabs, remounting the whole app each time.
   useEffect(() => {
+    const userId = (raw: string | null) => {
+      try {
+        return (JSON.parse(raw ?? "null") as { userId?: string } | null)?.userId ?? null;
+      } catch {
+        return null;
+      }
+    };
     const onStorage = (e: StorageEvent) => {
-      if (e.key === CAVOS_IDENTITY_KEY) setCavosMount((n) => n + 1);
+      if (e.key === CAVOS_IDENTITY_KEY && userId(e.oldValue) !== userId(e.newValue)) setCavosMount((n) => n + 1);
     };
     addEventListener("storage", onStorage);
     return () => removeEventListener("storage", onStorage);

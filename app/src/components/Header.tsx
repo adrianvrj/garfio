@@ -21,7 +21,9 @@ export function Header() {
   const w = useWallet();
   const profile = useProfile(w.address);
   const [login, setLogin] = useState(false);
-  const [drawer, setDrawer] = useState(false);
+  // The address the drawer opened for: if the wallet blinks while Cavos settles, the drawer
+  // stays put instead of remounting (and sliding in again).
+  const [drawer, setDrawer] = useState<string | null>(null);
   const [err, setErr] = useState("");
   const loginView = usePresence(login, 220);
   const trigger = useRef<HTMLButtonElement>(null);
@@ -93,7 +95,7 @@ export function Header() {
           )}
           <Link href="/create" className="btn primary">Crear moneda</Link>
           {w.address ? (
-            <button className="wallet-chip" onClick={() => setDrawer(true)} aria-label="Abrir perfil">
+            <button className="wallet-chip" onClick={() => setDrawer(w.address)} aria-label="Abrir perfil">
               <UserAvatar address={w.address} image={profile.image} size={28} />
               <span className="hide-sm">{profile.name || short(w.address)}</span>
             </button>
@@ -105,7 +107,7 @@ export function Header() {
 
       {/* Portaled: the sticky header's backdrop-filter would trap position:fixed children. */}
       <DepositModal />
-      {drawer && w.address && createPortal(<ProfileDrawer onClose={() => setDrawer(false)} />, document.body)}
+      {drawer && createPortal(<ProfileDrawer address={drawer} onClose={() => setDrawer(null)} />, document.body)}
 
       {loginView.mounted && createPortal(
         <div className="modal-bg" data-open={loginView.shown || undefined} onClick={() => setLogin(false)}>

@@ -32,9 +32,13 @@ function useSwipeDrawer(onClosed: () => void) {
     closed.current = onClosed;
   });
 
+  const closing = useRef(false);
   const close = useCallback(() => {
+    // Asked again while leaving (a second Escape, a scrim tap): leave now.
+    if (closing.current || !spring.current) return void (spring.current?.stop(), closed.current());
+    closing.current = true;
     const w = panel.current?.offsetWidth ?? 400;
-    spring.current?.to(w, { ...OPEN, onRest: () => closed.current() });
+    spring.current.to(w, { ...OPEN, onRest: () => closed.current() });
   }, []);
 
   useLayoutEffect(() => {
@@ -88,7 +92,11 @@ function useSwipeDrawer(onClosed: () => void) {
       const v = e.type === "pointerup" && b.t > a.t ? ((b.x - a.x) / (b.t - a.t)) * 1000 : 0;
       const w = el.offsetWidth;
       if (s.value + project(v) > w / 2) s.to(w, { ...OPEN, velocity: v, onRest: () => closed.current() });
-      else s.to(0, { ...OPEN, velocity: v });
+      else {
+        // Grabbed mid-exit and pulled back in: it is open again.
+        closing.current = false;
+        s.to(0, { ...OPEN, velocity: v });
+      }
     };
 
     el.addEventListener("pointerdown", down);
@@ -108,9 +116,8 @@ function useSwipeDrawer(onClosed: () => void) {
 }
 
 /** Wallet profile: local name, bio and picture, plus balances, holdings and created coins. */
-export function ProfileDrawer({ onClose: onClosed }: { onClose: () => void }) {
+export function ProfileDrawer({ address, onClose: onClosed }: { address: string; onClose: () => void }) {
   const w = useWallet();
-  const address = w.address!;
   const profile = useProfile(address);
   const memes = useMemes();
   const value = useValuation();
