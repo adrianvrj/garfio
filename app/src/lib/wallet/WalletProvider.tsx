@@ -37,13 +37,25 @@ interface CavosApi {
  * every render, so the functions go into a ref and only the address is lifted
  * as state; lifting the whole object would re-render the provider in a loop.
  */
-function CavosBridge({ apiRef, onAddress }: { apiRef: RefObject<CavosApi | null>; onAddress: (a: string | null) => void }) {
-  const { wallet, address, openModal, logout, walletStatus } = useCavos();
+function CavosBridge({
+  apiRef,
+  onAddress,
+}: {
+  apiRef: RefObject<CavosApi | null>;
+  /** The usable address, and whether Cavos is still restoring the session. */
+  onAddress: (a: string | null, restoring: boolean) => void;
+}) {
+  const { wallet, address, openModal, logout, walletStatus, isLoading } = useCavos();
   const usable = walletStatus.needsDeviceApproval ? null : address;
+  const current = useRef(wallet);
 
   useEffect(() => {
+    current.current = wallet;
     /** The Stellar wallet, created on-chain if needed: Cavos only acts on existing accounts. */
     const ready = async () => {
+      // A trade right after a reload can land before Cavos has restored the session; give it time.
+      for (let i = 0; i < 75 && !current.current; i++) await new Promise((r) => setTimeout(r, 200));
+      const wallet = current.current;
       if (!wallet || wallet.chain !== "stellar") throw new Error("Wallet de Cavos no conectada.");
       if (wallet.status === "needs-device-approval") throw new Error("Aprueba este dispositivo en Cavos.");
       // The first execute creates the account (sponsored).
@@ -64,12 +76,16 @@ function CavosBridge({ apiRef, onAddress }: { apiRef: RefObject<CavosApi | null>
     };
   });
 
-  useEffect(() => onAddress(usable), [usable, onAddress]);
+  useEffect(() => onAddress(usable, isLoading), [usable, isLoading, onAddress]);
 
   return null;
 }
 
 const STORAGE_KEY = "garfio-wallet";
+/** The last Cavos address, shown while Cavos restores the session on load (it takes seconds). */
+const CAVOS_ADDR_KEY = "garfio-cavos-address";
+/** Where Cavos keeps the signed-in identity. */
+const CAVOS_IDENTITY_KEY = `cavos-kit:identity:${CAVOS_APP_ID}`;
 
 /**
  * Cavos's Google login returns to the page it started on, and that URL must be registered in the
@@ -83,12 +99,42 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   const [chosen, setChosen] = useState<WalletKind | null>(null);
   const [freighterAddr, setFreighterAddr] = useState<string | null>(null);
   const [cavosAddr, setCavosAddr] = useState<string | null>(null);
+  // Bumped when another tab signs in or out, to remount Cavos so it picks up the new session.
+  const [cavosMount, setCavosMount] = useState(0);
   const cavos = useRef<CavosApi | null>(null);
   const router = useRouter();
   const pathname = usePathname();
   const pendingModal = useRef(false);
   // Cavos restores its own session, so it is active whenever it reports an address.
   const kind: WalletKind | null = chosen === "freighter" ? "freighter" : cavosAddr ? "cavos" : null;
+
+  // Optimistic: the address from the last visit, until Cavos confirms or clears it.
+  useEffect(() => {
+    try {
+      const last = localStorage.getItem(CAVOS_ADDR_KEY);
+      // After hydration, so the server and the first client render agree.
+      if (last) queueMicrotask(() => setCavosAddr((a) => a ?? last));
+    } catch {}
+  }, []);
+
+  // The email magic link opens in a new tab, which is the one that signs in. This tab hears it
+  // through the shared storage and reconnects, instead of waiting for a reload.
+  useEffect(() => {
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === CAVOS_IDENTITY_KEY) setCavosMount((n) => n + 1);
+    };
+    addEventListener("storage", onStorage);
+    return () => removeEventListener("storage", onStorage);
+  }, []);
+
+  const onCavosAddress = useCallback((a: string | null, restoring: boolean) => {
+    if (restoring && !a) return; // keep the optimistic address until Cavos answers
+    setCavosAddr(a);
+    try {
+      if (a) localStorage.setItem(CAVOS_ADDR_KEY, a);
+      else localStorage.removeItem(CAVOS_ADDR_KEY);
+    } catch {}
+  }, []);
 
   useEffect(() => {
     try {
@@ -139,6 +185,10 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   const disconnect = useCallback(async () => {
     if (kind === "freighter") await freighter.disconnect();
     if (kind === "cavos") cavos.current?.logout();
+    setCavosAddr(null);
+    try {
+      localStorage.removeItem(CAVOS_ADDR_KEY);
+    } catch {}
     setFreighterAddr(null);
     setChosen(null);
     try {
@@ -174,10 +224,11 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   if (!CAVOS_APP_ID) return tree;
   return (
     <CavosProvider
+      key={cavosMount}
       config={{ appId: CAVOS_APP_ID, environment: CAVOS_ENV, chains: ["stellar"], network: NETWORK, appSalt: "garfio" }}
       modal={{ appName: "Garfio" }}
     >
-      <CavosBridge apiRef={cavos} onAddress={setCavosAddr} />
+      <CavosBridge apiRef={cavos} onAddress={onCavosAddress} />
       {tree}
     </CavosProvider>
   );
