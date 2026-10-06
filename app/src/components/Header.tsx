@@ -8,6 +8,7 @@ import { IS_MAINNET } from "@/lib/config";
 import { useWallet } from "@/lib/wallet/WalletProvider";
 import { useProfile } from "@/lib/profile";
 import { usePresence } from "@/hooks/usePresence";
+import { useSwipeSheet } from "@/hooks/useSwipeSheet";
 import { explain } from "@/lib/errors";
 import { short } from "@/lib/units";
 import { UserAvatar } from "./Art";
@@ -26,6 +27,7 @@ export function Header() {
   const [drawer, setDrawer] = useState<string | null>(null);
   const [err, setErr] = useState("");
   const loginView = usePresence(login, 220);
+  const loginSheetRef = useSwipeSheet<HTMLDivElement>(loginView.mounted, login, () => setLogin(false));
   const trigger = useRef<HTMLButtonElement>(null);
   const bar = useRef<HTMLElement>(null);
 
@@ -52,6 +54,7 @@ export function Header() {
 
   // The dialog grows out of the button that opened it.
   const anchor = (el: HTMLDivElement | null) => {
+    loginSheetRef.current = el;
     const b = trigger.current?.getBoundingClientRect();
     if (!el || !b) return;
     const r = el.getBoundingClientRect();

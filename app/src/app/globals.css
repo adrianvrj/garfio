@@ -411,7 +411,9 @@ textarea.input { height: auto; padding: 8px 10px; resize: vertical; min-height: 
   .chart { height: 260px; }
   /* The login becomes a sheet from the bottom edge, within reach of the thumb. */
   .modal-bg { place-items: end stretch; padding: 0; }
-  .modal { width: 100%; border-width: 2px 0 0; outline: 0; padding-bottom: calc(20px + env(safe-area-inset-bottom)); transform: translateY(100%); }
+  /* Swiped down to dismiss (useSwipeSheet): the grabber says it can be, and the page must not scroll under the finger. */
+  .modal { position: relative; width: 100%; border-width: 2px 0 0; outline: 0; padding-top: 28px; padding-bottom: calc(20px + env(safe-area-inset-bottom)); transform: translateY(100%); touch-action: none; }
+  .modal::before { content: ""; position: absolute; top: 10px; left: 50%; width: 36px; height: 4px; margin-left: -18px; background: var(--edge); }
   .drawer { padding-bottom: calc(20px + env(safe-area-inset-bottom)); }
   .search { grid-column: 1 / -1; grid-row: 2; max-width: none; }
   .coin-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }

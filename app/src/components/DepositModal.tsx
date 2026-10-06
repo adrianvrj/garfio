@@ -9,6 +9,7 @@ import { fmt } from "@/lib/units";
 import { useWallet } from "@/lib/wallet/WalletProvider";
 import { useListedPairs } from "@/hooks/useListedPairs";
 import { usePresence } from "@/hooks/usePresence";
+import { useSwipeSheet } from "@/hooks/useSwipeSheet";
 import { useTx } from "@/hooks/useTx";
 import { YieldBadge } from "./YieldBadge";
 
@@ -46,6 +47,8 @@ export function DepositModal() {
   const [step, setStep] = useState<string | null>(null);
   const [done, setDone] = useState(false);
   const view = usePresence(open, 220);
+  // Mid-deposit the sheet stays put, like the scrim and Escape.
+  const sheet = useSwipeSheet<HTMLDivElement>(view.mounted, open, () => setOpen(false), !step);
 
   useEffect(() => {
     const onOpen = (e: Event) => {
@@ -98,7 +101,7 @@ export function DepositModal() {
 
   return createPortal(
     <div className="modal-bg" data-open={view.shown || undefined} onClick={() => !step && setOpen(false)}>
-      <div className="modal" role="dialog" aria-modal="true" aria-labelledby="deposit-title" onClick={(e) => e.stopPropagation()}>
+      <div className="modal" ref={sheet} role="dialog" aria-modal="true" aria-labelledby="deposit-title" onClick={(e) => e.stopPropagation()}>
         <div className="between">
           <h3 id="deposit-title">{done ? "Listo" : step ? "Depositando" : "Depositar"}</h3>
           {!step && <button className="btn ghost sm" onClick={() => setOpen(false)} aria-label="Cerrar">✕</button>}

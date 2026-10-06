@@ -42,11 +42,13 @@ function CavosBridge({
   onAddress,
 }: {
   apiRef: RefObject<CavosApi | null>;
-  /** The usable address, and whether Cavos is still restoring the session. */
+  /** The signed-in address, and whether Cavos is still restoring the session. */
   onAddress: (a: string | null, restoring: boolean) => void;
 }) {
-  const { wallet, address, openModal, logout, walletStatus, isLoading } = useCavos();
-  const usable = walletStatus.needsDeviceApproval ? null : address;
+  // A device that still needs approval is signed in all the same: the account shows, and a trade
+  // explains what is missing (see ready()). Cavos's walletStatus.needsDeviceApproval also flips
+  // every few seconds while the wallet sits in that state, so gating on it blinked the session.
+  const { wallet, address, openModal, logout, isLoading } = useCavos();
   const current = useRef(wallet);
 
   useEffect(() => {
@@ -76,7 +78,7 @@ function CavosBridge({
     };
   });
 
-  useEffect(() => onAddress(usable, isLoading), [usable, isLoading, onAddress]);
+  useEffect(() => onAddress(address, isLoading), [address, isLoading, onAddress]);
 
   return null;
 }
