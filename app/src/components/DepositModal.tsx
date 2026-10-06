@@ -130,7 +130,7 @@ export function DepositModal() {
             <div className="sim-note small">
               <b>Depósito simulado</b>
               <span>
-                Garfio corre en testnet: no recibimos dinero. Nuestro faucet te envía bonos de sandbox de Etherfuse para
+                Hooks corre en testnet: no recibimos dinero. Nuestro faucet te envía bonos de sandbox de Etherfuse para
                 que pruebes. En producción, Etherfuse recibe tus pesos por transferencia y te manda el bono real.
               </span>
             </div>

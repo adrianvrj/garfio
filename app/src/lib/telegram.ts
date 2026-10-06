@@ -1,4 +1,4 @@
-// Garfio's Telegram bot: it never holds keys. It reads the launchpad and answers with links that
+// Hooks' Telegram bot: it never holds keys. It reads the launchpad and answers with links that
 // open the app, where the user signs. Server-only: the token lives in TELEGRAM_BOT_TOKEN.
 import type { Meme } from "./chain";
 import { pairById } from "./config";
@@ -49,7 +49,7 @@ export function memeCard(m: Meme, rates: Rates | null): { html: string; buttons:
     .join("\n");
   const page = `${SITE}/m/${m.token}`;
   const buttons = m.pool
-    ? [[{ text: "Ver en Garfio", url: page }]]
-    : [[10, 50, 100].map((d) => ({ text: `Comprar $${d}`, url: `${page}?buy=${d}` })), [{ text: "Ver en Garfio", url: page }]];
+    ? [[{ text: "Ver en Hooks", url: page }]]
+    : [[10, 50, 100].map((d) => ({ text: `Comprar $${d}`, url: `${page}?buy=${d}` })), [{ text: "Ver en Hooks", url: page }]];
   return { html, buttons };
 }
