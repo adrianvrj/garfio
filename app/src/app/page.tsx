@@ -4,12 +4,15 @@ import { artSeed } from "@/lib/avatar";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
+import { useListedPairs } from "@/hooks/useListedPairs";
 import { useMarket, type MarketRow } from "@/hooks/useMarket";
 import { PAIRS } from "@/lib/config";
+import { useFavorites } from "@/lib/favorites";
 import { compact, fmt, fromUnits, usd } from "@/lib/units";
 import { TokenArt } from "@/components/Art";
 import { Identity } from "@/components/Identity";
 import { PairBadge, TokenCard } from "@/components/TokenCard";
+import { Progress } from "@/components/Progress";
 
 const SORTS = {
   activity: { label: "Actividad", fn: (a: MarketRow, b: MarketRow) => b.lastAt - a.lastAt },
@@ -43,9 +46,9 @@ function King({ row }: { row: MarketRow }) {
         </div>
         <div className="between">
           <span className="muted">Reserva en {v.pair?.symbol}</span>
-          <span className="num">{compact(fromUnits(m.real_pair))} · {usd(v.reserveUsd, 0)}</span>
+          <span className="num">{compact(fromUnits(row.backing))} · {usd(row.backingUsd, 0)}</span>
         </div>
-        <div className="progress"><i style={{ width: `${progress}%` }} /></div>
+        <Progress value={progress} label="Graduación" />
         <span className="small muted">{fmt(progress, 1)}% de la curva vendida</span>
       </div>
     </Link>
@@ -57,18 +60,42 @@ function Market() {
   const { rows, memes } = useMarket();
   const [sort, setSort] = useState<SortKey>("activity");
   const [pair, setPair] = useState<string | null>(null);
+  const favorites = useFavorites();
+  const listed = useListedPairs();
+  const [onlyFavs, setOnlyFavs] = useState(false);
   const [now] = useState(() => Date.now());
 
   const king = [...rows].filter((r) => !r.m.graduated).sort(SORTS.grad.fn)[0];
   const shown = rows
     .filter((r) => !pair || r.m.pair === pair)
+    .filter((r) => !onlyFavs || favorites.includes(r.m.id))
     .filter((r) => !q || r.m.symbol.toLowerCase().includes(q) || r.m.name.toLowerCase().includes(q))
     .sort(SORTS[sort].fn);
-  const locked = rows.reduce((s, r) => s + r.v.reserveUsd, 0);
+  const backedUsd = rows.reduce((s, r) => s + r.backingUsd, 0);
+  const backedBy = PAIRS.map((p) => ({
+    p,
+    units: rows.filter((r) => r.m.pair === p.id).reduce((s, r) => s + fromUnits(r.backing), 0),
+  })).filter((b) => b.units > 0);
 
   return (
     <>
       {king && !q && <King row={king} />}
+
+      {!q && rows.length > 0 && (
+        <section className="backed" aria-label="Bonos comprados por memes">
+          <div className="stack" style={{ gap: 2 }}>
+            <span className="section-title">Bonos soberanos comprados por memes</span>
+            <b className="backed-total num">{usd(backedUsd, 0)}</b>
+          </div>
+          <div className="backed-split">
+            {backedBy.map(({ p, units }) => (
+              <span key={p.id} className="num">
+                {compact(units)} <span className="muted">{p.symbol}</span>
+              </span>
+            ))}
+          </div>
+        </section>
+      )}
 
       <div className="toolbar">
         <div className="chips" role="group" aria-label="Ordenar">
@@ -79,15 +106,15 @@ function Market() {
           ))}
         </div>
         <div className="row">
+          <button className="chip" aria-pressed={onlyFavs} onClick={() => setOnlyFavs(!onlyFavs)}>★ Favoritos</button>
           <div className="chips" role="group" aria-label="Filtrar por respaldo">
             <button className="chip" aria-pressed={pair === null} onClick={() => setPair(null)}>Todos</button>
-            {PAIRS.map((p) => (
+            {listed.map((p) => (
               <button key={p.id} className="chip" aria-pressed={pair === p.id} onClick={() => setPair(p.id)}>
                 {p.symbol}
               </button>
             ))}
           </div>
-          <span className="muted small hide-sm">{usd(locked, 0)} en RWAs</span>
         </div>
       </div>
 
@@ -105,7 +132,11 @@ function Market() {
         </div>
       ) : (
         <div className="empty">
-          {q ? `Ninguna meme coincide con “${q}”.` : "Todavía no hay memes con este respaldo."}
+          {q
+            ? `Ninguna meme coincide con “${q}”.`
+            : onlyFavs
+              ? "Marca memes con ☆ para verlas aquí."
+              : "Todavía no hay memes con este respaldo."}
           <Link href="/create" className="btn primary">Crea la primera</Link>
         </div>
       )}

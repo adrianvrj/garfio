@@ -9,12 +9,15 @@ const BUMP_TO: u32 = 120 * DAY;
 pub enum Key {
     Admin,
     MemeWasm,
+    AmmFactory,
     MemeCount,
     Pairs,
-    Memes,
+    /// The n-th meme ever created, so the list pages instead of living in one growing entry.
+    MemeAt(u32),
     Pair(Address),
     Curve(Address),
     ProtocolFees(Address),
+    Position(Address, Address),
 }
 
 #[contracttype]
@@ -22,6 +25,8 @@ pub enum Key {
 pub struct PairCfg {
     pub v_pair0: i128,
     pub grad_target: i128,
+    /// Paid by the creator in the pair at `create`; it seeds the meme's vault.
+    pub create_fee: i128,
 }
 
 #[contracttype]
@@ -37,8 +42,24 @@ pub struct Curve {
     pub real_pair: i128,
     pub sold: i128,
     pub fees_creator: i128,
+    /// Pair set aside for the meme's holders: a quarter of each fee, the create fee and the
+    /// reserve the pool did not need. Once migrated, `buyback` spends it on memes and burns them.
+    pub vault: i128,
+    /// Memes burned by migration leftovers and buybacks.
+    pub burned: i128,
     pub created_at: u64,
     pub graduated: bool,
+    /// Soroswap pair holding the liquidity once the curve has migrated.
+    pub pool: Option<Address>,
+}
+
+/// What a trader bought on the curve and still holds, at average cost, in the meme's pair.
+#[contracttype]
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct Position {
+    pub held: i128,
+    pub cost: i128,
+    pub realized: i128,
 }
 
 pub fn bump_instance(e: &Env) {
@@ -74,10 +95,28 @@ pub fn set_meme_wasm(e: &Env, h: &BytesN<32>) {
     e.storage().instance().set(&Key::MemeWasm, h);
 }
 
-pub fn next_meme_id(e: &Env) -> u32 {
-    let n: u32 = e.storage().instance().get(&Key::MemeCount).unwrap_or(0);
+pub fn amm_factory(e: &Env) -> Address {
+    e.storage().instance().get(&Key::AmmFactory).unwrap()
+}
+
+pub fn set_amm_factory(e: &Env, f: &Address) {
+    e.storage().instance().set(&Key::AmmFactory, f);
+}
+
+pub fn meme_count(e: &Env) -> u32 {
+    e.storage().instance().get(&Key::MemeCount).unwrap_or(0)
+}
+
+/// Appends `meme` to the list and returns its index.
+pub fn push_meme(e: &Env, meme: &Address) -> u32 {
+    let n = meme_count(e);
     e.storage().instance().set(&Key::MemeCount, &(n + 1));
+    set_p(e, &Key::MemeAt(n), meme);
     n
+}
+
+pub fn meme_at(e: &Env, n: u32) -> Address {
+    get_p(e, &Key::MemeAt(n)).unwrap()
 }
 
 pub fn pairs(e: &Env) -> Vec<Address> {
@@ -96,14 +135,6 @@ pub fn set_pair(e: &Env, a: &Address, c: &PairCfg) {
     set_p(e, &Key::Pair(a.clone()), c);
 }
 
-pub fn memes(e: &Env) -> Vec<Address> {
-    get_p(e, &Key::Memes).unwrap_or(Vec::new(e))
-}
-
-pub fn set_memes(e: &Env, v: &Vec<Address>) {
-    set_p(e, &Key::Memes, v);
-}
-
 pub fn curve(e: &Env, meme: &Address) -> Option<Curve> {
     get_p(e, &Key::Curve(meme.clone()))
 }
@@ -118,4 +149,22 @@ pub fn protocol_fees(e: &Env, pair: &Address) -> i128 {
 
 pub fn set_protocol_fees(e: &Env, pair: &Address, v: i128) {
     set_p(e, &Key::ProtocolFees(pair.clone()), &v);
+}
+
+/// Positions live like the meme tokens' balances (OpenZeppelin stellar-tokens): a new one gets
+/// the network's minimum TTL, and each later trade keeps it alive for 30 more days. One that
+/// archives is restored, not lost, by the trader's next trade.
+const POSITION_TTL: u32 = 30 * DAY;
+
+pub fn position(e: &Env, trader: &Address, meme: &Address) -> Position {
+    let k = Key::Position(trader.clone(), meme.clone());
+    let p = e.storage().persistent().get(&k);
+    if p.is_some() {
+        e.storage().persistent().extend_ttl(&k, POSITION_TTL - DAY, POSITION_TTL);
+    }
+    p.unwrap_or_default()
+}
+
+pub fn set_position(e: &Env, trader: &Address, meme: &Address, p: &Position) {
+    e.storage().persistent().set(&Key::Position(trader.clone(), meme.clone()), p);
 }

@@ -3,6 +3,7 @@
 import { artSeed } from "@/lib/avatar";
 import Link from "next/link";
 import { useMarket } from "@/hooks/useMarket";
+import { LAUNCHPAD_ID } from "@/lib/config";
 import { compact, fmt, fromUnits } from "@/lib/units";
 import { TokenArt } from "./Art";
 import { Identity } from "./Identity";
@@ -24,7 +25,7 @@ export function ActivityStrip() {
         className="act"
       >
         <Identity address={t.trader} size={20} />
-        <span>{t.isBuy ? "▲ compró" : "▼ vendió"}</span>
+        <span>{t.trader === LAUNCHPAD_ID ? "▲ recompró" : t.isBuy ? "▲ compró" : "▼ vendió"}</span>
         <span className="num">
           {t.isBuy
             ? `${fmt(fromUnits(t.pairAmt), pair?.decimals ?? 2)} ${pair?.symbol ?? ""}`

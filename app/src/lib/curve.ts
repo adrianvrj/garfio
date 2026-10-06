@@ -12,6 +12,9 @@ export const gradProgress = (c: Curve) => Math.min(100, (fromUnits(c.sold) / FOR
 
 const V_TOKEN0 = 1_073_000_000;
 
+/** Meme price in pair units when the curve opens, before any trade. */
+export const openingPrice = (vPair0: bigint) => fromUnits(vPair0) / V_TOKEN0;
+
 /** Real pair reserve once all FOR_SALE tokens are sold (mirrors the contract's grad_target). */
 export const gradTarget = (vPair0: bigint) => {
   const v0 = fromUnits(vPair0);

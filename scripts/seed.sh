@@ -1,36 +1,45 @@
 #!/usr/bin/env bash
-# Creates the example memes with the simulator's trades. Run it on demo day:
-# public RPCs may keep events for only 24 h, and the charts read events.
+# Creates example memes on each bond, with trades from three seed accounts that the faucet
+# treasury funds. Stock the treasury first, once per bond:
+#   ./scripts/etherfuse-onramp.sh garfio-faucet 500 <orders> <SYMBOL>   # about $28 per order
+# Amounts are in dollars and converted at each bond's deploy-time price.
 source "$(dirname "$0")/lib.sh"
 
 LP=$(json_get .launchpad)
-SEEDS=(garfio-seed-1 garfio-seed-2 garfio-seed-3)
-for s in "${SEEDS[@]}"; do
-  ensure_key "$s"
-  # three faucet calls per pair cover every seed buy below
-  for sym in tCETES tUSTRY tNVDA tCETES tUSTRY tNVDA tCETES tUSTRY tNVDA; do
-    invoke "$s" "$(json_get ".pairs.$sym.id")" faucet --to "$s" >/dev/null
+SEED_USD=40 # per seed account and bond
+
+# Bonds the treasury holds enough of for the three seed accounts; the rest are skipped.
+stocked() { [ "$(balance garfio-faucet "$1")" -ge "$(usd_units "$1" $((SEED_USD * 3)))" ]; }
+BONDS=""
+for sym in $(json_get '.pairs | keys[]'); do
+  if stocked "$sym"; then BONDS="$BONDS $sym"; else log "skipping $sym: stock it with ./scripts/etherfuse-onramp.sh garfio-faucet 500 <orders> $sym"; fi
+done
+
+for s in 1 2 3; do
+  seed="garfio-seed-$s"
+  ensure_key "$seed"
+  for sym in $BONDS; do
+    invoke "$seed" "$(pair_id "$sym")" trust --addr "$seed" >/dev/null # no-op once the trustline exists
+    invoke garfio-faucet "$(pair_id "$sym")" transfer --from garfio-faucet --to "$seed" --amount "$(usd_units "$sym" $SEED_USD)" >/dev/null
   done
 done
 
-seed_meme() { # creator symbol name pair buys...
-  local creator="$1" sym="$2" name="$3" pair="$4"; shift 4
-  log "create \$$sym / $pair"
-  local meme
-  meme=$(invoke "$creator" "$LP" create --creator "$creator" --name "$name" --symbol "$sym" \
-    --pair "$(json_get ".pairs.$pair.id")" | tr -d '"')
-  local i=0
-  for amt in "$@"; do
-    local buyer="${SEEDS[$((i % 3))]}"
-    invoke "$buyer" "$LP" buy --buyer "$buyer" --meme "$meme" --pair_in "$(units "$amt")" --min_out 0 >/dev/null
-    i=$((i + 1))
+seed_meme() { # creator bond symbol name dev_usd buyer:usd...
+  local creator="$1" bond="$2" sym="$3" name="$4" dev="$5" meme; shift 5
+  log "create \$$sym on $bond with a \$$dev creator buy"
+  meme=$(invoke "garfio-seed-$creator" "$LP" create --creator "garfio-seed-$creator" --name "$name" --symbol "$sym" \
+    --pair "$(pair_id "$bond")" --dev_buy "$(usd_units "$bond" "$dev")" | tr -d '"')
+  for trade in "$@"; do
+    local buyer="garfio-seed-${trade%%:*}"
+    invoke "$buyer" "$LP" buy --buyer "$buyer" --meme "$meme" --pair_in "$(usd_units "$bond" "${trade##*:}")" --min_out 0 >/dev/null
   done
   json_set ".seeded.$sym = \"$meme\""
 }
 
-seed_meme garfio-seed-1 TACO     "Taco Coin"   tCETES 220 500 140 900 60 1300 300
-seed_meme garfio-seed-2 NVDOGE   "Nvidia Doge" tNVDA  1.2 3 0.6 4.5 2.2 1.1
-seed_meme garfio-seed-3 CHILANGO "Chilango"    tCETES 80 150 40 260
-seed_meme garfio-seed-1 LAMBO    "Lambo Inu"   tNVDA  0.5 0.9 2.1
-seed_meme garfio-seed-2 EAGLE    "Bald Eagle"  tUSTRY 120 300 90 450
-log "seeded $(invoke garfio-seed-1 "$LP" memes | jq length) memes"
+has() { [[ " $BONDS " == *" $1 "* ]]; }
+
+has CETES && seed_meme 1 CETES NOPAL "Nopal Coin" 4 2:3 3:2 1:2
+has CETES && seed_meme 2 CETES TACO "Taco Coin" 3 3:6 1:2 2:3
+has TESOURO && seed_meme 3 TESOURO CAIPI "Caipirinha" 2 1:3 2:1
+has USTRY && seed_meme 1 USTRY EAGLE "Bald Eagle" 2 3:4
+log "seeded $(invoke garfio-seed-1 "$LP" meme_count) memes"

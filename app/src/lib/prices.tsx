@@ -1,75 +1,50 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
-import { DEPLOYED_AT, type PairSymbol } from "./config";
-
-const DAY_MS = 86_400_000;
-const YIELD: Partial<Record<PairSymbol, number>> = { tCETES: 0.07, tUSTRY: 0.042 };
+import { createContext, useCallback, useContext, type ReactNode } from "react";
+import { usePoll } from "@/hooks/usePoll";
+import { PAIRS, type PairSymbol } from "./config";
+import { bondUsd, type Rates } from "./rates";
 
 interface Prices {
-  /** Demo offset added to real elapsed days. Display only. */
-  dayOffset: number;
-  advance: (days: number) => void;
-  nvda: number;
-  nvdaLive: number | null;
-  setNvdaOverride: (v: number | null) => void;
-  /** Days since launch, demo offset included. */
-  days: () => number;
-  /** USD value of one unit of the pair. */
+  /** USD value of one unit of the pair: Etherfuse's NAV at today's exchange rate. */
   usd: (pair: PairSymbol) => number;
-  /** USD value of the pair at a past time, without the demo offset (NVDA has no history: today's price). */
-  usdAt: (pair: PairSymbol, at: number) => number;
+  /** The bond's current annual rate, in percent. Null until loaded. */
+  yieldPct: (pair: PairSymbol) => number | null;
+  /** The bond's NAV and rate, in its own currency. Null until loaded. */
+  bond: (pair: PairSymbol) => { nav: number; rateBps: number } | null;
 }
+
 
 const Ctx = createContext<Prices | null>(null);
 
+async function fetchRates(): Promise<Rates> {
+  const res = await fetch("/api/rates");
+  if (!res.ok) throw new Error("Sin precios de Etherfuse");
+  return res.json();
+}
+
 export function PriceProvider({ children }: { children: ReactNode }) {
-  const [dayOffset, setDayOffset] = useState(0);
-  const [nvdaLive, setNvdaLive] = useState<number | null>(null);
-  const [nvdaOverride, setNvdaOverride] = useState<number | null>(null);
-  // Clock for yield accrual. Ticks slowly so values are stable between renders.
-  const [now, setNow] = useState(() => Date.now());
-  useEffect(() => {
-    const t = setInterval(() => setNow(Date.now()), 10_000);
-    return () => clearInterval(t);
-  }, []);
+  const rates = usePoll(fetchRates, 300_000);
 
-  useEffect(() => {
-    const load = () =>
-      fetch("/api/nvda")
-        .then((r) => r.json())
-        .then((j) => setNvdaLive(j.price))
-        .catch(() => {});
-    load();
-    const t = setInterval(load, 60_000);
-    return () => clearInterval(t);
-  }, []);
-
-  const nvda = nvdaOverride ?? nvdaLive ?? 182;
-  const days = useCallback(() => Math.max(0, (now - DEPLOYED_AT) / DAY_MS) + dayOffset, [now, dayOffset]);
   const usd = useCallback(
-    (pair: PairSymbol) => {
-      if (pair === "tNVDA") return nvda;
-      return Math.pow(1 + (YIELD[pair] ?? 0), days() / 365);
+    (symbol: PairSymbol) => {
+      const p = PAIRS.find((x) => x.symbol === symbol)!;
+      return bondUsd(rates.data, symbol, p.currency, p.usd0);
     },
-    [nvda, days],
+    [rates.data],
   );
 
-  const usdAt = useCallback(
-    (pair: PairSymbol, at: number) => {
-      if (pair === "tNVDA") return nvda;
-      return Math.pow(1 + (YIELD[pair] ?? 0), Math.max(0, (at - DEPLOYED_AT) / DAY_MS) / 365);
+  const yieldPct = useCallback(
+    (symbol: PairSymbol) => {
+      const b = rates.data?.bonds[symbol];
+      return b ? b.rateBps / 100 : null;
     },
-    [nvda],
+    [rates.data],
   );
 
-  return (
-    <Ctx.Provider
-      value={{ dayOffset, advance: (d) => setDayOffset((o) => o + d), nvda, nvdaLive, setNvdaOverride, days, usd, usdAt }}
-    >
-      {children}
-    </Ctx.Provider>
-  );
+  const bond = useCallback((symbol: PairSymbol) => rates.data?.bonds[symbol] ?? null, [rates.data]);
+
+  return <Ctx.Provider value={{ usd, yieldPct, bond }}>{children}</Ctx.Provider>;
 }
 
 export function usePrices() {

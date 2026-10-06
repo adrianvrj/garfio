@@ -2,28 +2,36 @@
 
 import { artSeed } from "@/lib/avatar";
 import { useParams } from "next/navigation";
-import { useMemo, useState } from "react";
-import { fetchMeme, fetchTrades, holdersFromTrades } from "@/lib/chain";
-import { contractUrl, pairById, txUrl } from "@/lib/config";
-import { gradProgress, gradTarget, pricePair, SUPPLY, FOR_SALE } from "@/lib/curve";
+import { useLayoutEffect, useRef, useState } from "react";
+import { balanceOf, fetchHolders, fetchMeme, fetchMemeTrades, fetchPool } from "@/lib/chain";
+import { contractUrl, LAUNCHPAD_ID, pairById, txUrl } from "@/lib/config";
+import { gradProgress, gradTarget, openingPrice, SUPPLY, FOR_SALE } from "@/lib/curve";
 import { usePrices } from "@/lib/prices";
+import { accrued, dailyYield } from "@/lib/yield";
 import { ago, compact, fmt, fromUnits, pct, tiny, usd } from "@/lib/units";
 import { useWallet } from "@/lib/wallet/WalletProvider";
-import { useBalances, useValuation } from "@/hooks/useMarket";
+import { last24h, useBalances, useValuation } from "@/hooks/useMarket";
 import { usePoll } from "@/hooks/usePoll";
 import { TokenArt } from "@/components/Art";
-import { Chart } from "@/components/Chart";
+import { PriceChart } from "@/components/PriceChart";
 import { Identity } from "@/components/Identity";
 import { TradePanel } from "@/components/TradePanel";
+import { Progress } from "@/components/Progress";
+import { FavoriteButton } from "@/components/TokenCard";
+import { YieldBadge } from "@/components/YieldBadge";
 
 export default function CoinPage() {
   const { id } = useParams<{ id: string }>();
   const w = useWallet();
-  const { usdAt } = usePrices();
+  const prices = usePrices();
   const value = useValuation();
   const meme = usePoll(() => fetchMeme(id), 5_000, id);
-  const trades = usePoll(() => fetchTrades(id), 10_000, id);
+  const poolId = meme.data?.pool ?? null;
+  const trades = usePoll(() => fetchMemeTrades(id, poolId), 10_000, `${id}|${poolId}`);
   const balances = useBalances(w.address, [id]);
+  const pool = usePoll(meme.data?.pool ? () => fetchPool(meme.data!) : null, 10_000, meme.data?.pool ?? "");
+  const creator = meme.data?.creator;
+  const dev = usePoll(creator ? () => balanceOf(id, creator) : null, 15_000, `${id}|${creator}`);
   const [tab, setTab] = useState<"trades" | "holders">("trades");
   const [copied, setCopied] = useState(false);
   const [now] = useState(() => Date.now());
@@ -32,25 +40,30 @@ export default function CoinPage() {
   const v = m ? value(m) : null;
   const pair = m ? pairById(m.pair) : undefined;
 
-  // "Since you opened the page" baseline, split into curve vs RWA.
-  const [base, setBase] = useState<{ price: number; pairUsd: number } | null>(null);
-  if (m && v && !base) setBase({ price: pricePair(m), pairUsd: v.pairUsd });
+  // Past trades are valued at today's pair price, so the candles show the curve alone.
+  const pairUsd = v?.pairUsd ?? 0;
+  const ticks = (trades.data ?? []).map((t) => ({
+    at: t.at,
+    mcap: (Number(t.vPair) / Number(t.vToken)) * pairUsd * SUPPLY,
+    volume: fromUnits(t.pairAmt) * pairUsd,
+  }));
 
-  // Live points: appended whenever the USD market cap moves (trades or the RWA).
-  const [live, setLive] = useState<number[]>([]);
-  const mcap = Math.round((v?.mcapUsd ?? 0) * 100) / 100;
-  if (mcap && live[live.length - 1] !== mcap) setLive([...live, mcap].slice(-80));
+  const traders = [...new Set((trades.data ?? []).map((t) => t.trader))];
+  const holders = usePoll(() => fetchHolders(id, traders), 15_000, `${id}|${traders.join(",")}`);
 
-  const points = useMemo(() => {
-    if (!pair) return [];
-    const hist = (trades.data ?? []).map((t) => (Number(t.vPair) / Number(t.vToken)) * usdAt(pair.symbol, t.at) * SUPPLY);
-    return [...hist, ...live];
-  }, [trades.data, live, pair, usdAt]);
-
-  const holders = useMemo(() => holdersFromTrades(trades.data ?? []), [trades.data]);
+  // Park the underline under the selected tab; CSS slides it there.
+  const tablist = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const list = tablist.current;
+    const sel = list?.querySelector<HTMLElement>('[aria-selected="true"]');
+    if (!list || !sel) return;
+    list.style.setProperty("--ink-x", `${sel.offsetLeft}px`);
+    list.style.setProperty("--ink-w", String(sel.offsetWidth));
+    list.dataset.ink = "";
+  });
 
   if (meme.error) return <div className="empty" style={{ marginTop: 24 }}>No encontré esta meme: {meme.error}</div>;
-  if (!m || !v || !pair || !base) {
+  if (!m || !v || !pair) {
     return (
       <div className="coin">
         <div className="stack">
@@ -62,12 +75,20 @@ export default function CoinPage() {
     );
   }
 
-  const curveChg = (pricePair(m) / base.price - 1) * 100;
-  const pairChg = (v.pairUsd / base.pairUsd - 1) * 100;
-  const total = ((1 + curveChg / 100) * (1 + pairChg / 100) - 1) * 100;
   const g = gradProgress(m);
   const toGrad = Math.max(0, gradTarget(pair.vPair0) - fromUnits(m.real_pair));
+  // Once migrated, the price and the reserve live in the Soroswap pool.
+  const reserve = pool.data ? pool.data.pairAmt : m.real_pair;
+  const priceUsd = pool.data ? (Number(pool.data.pairAmt) / Number(pool.data.memeAmt)) * v.pairUsd : v.priceUsd;
+  const reserveUsd = fromUnits(reserve) * v.pairUsd;
   const recent = [...(trades.data ?? [])].reverse();
+  const unsold = m.pool ? SUPPLY - FOR_SALE : FOR_SALE - fromUnits(m.sold);
+  const day = last24h(m, trades.data ?? [], v.pairUsd, now);
+  const bond = prices.bond(pair.symbol);
+  const earning = bond && {
+    daily: dailyYield(reserve, bond.nav, bond.rateBps),
+    since: accrued(trades.data ?? [], reserve, now, bond.nav, bond.rateBps),
+  };
 
   return (
     <div className="coin">
@@ -80,9 +101,10 @@ export default function CoinPage() {
             </h1>
             <div className="row small muted" style={{ flexWrap: "wrap" }}>
               <Identity address={m.creator} size={16} />
+              {dev.data !== null && <span>· el dev tiene {fmt((fromUnits(dev.data) / SUPPLY) * 100, 2)}% del supply</span>}
               <span>· {ago(Number(m.created_at) * 1000, now)}</span>
               <span className="badge">{pair.symbol}</span>
-              {pair.yieldPct !== null && <span className="badge yield">+{fmt(pair.yieldPct, 1)}% anual</span>}
+              <YieldBadge pair={pair} />
               <button
                 className="copy"
                 onClick={() => {
@@ -95,79 +117,112 @@ export default function CoinPage() {
                 {copied ? "copiado ✓" : `${m.id.slice(0, 4)}…${m.id.slice(-4)}`}
               </button>
               <a className="copy" href={contractUrl(m.id)} target="_blank" rel="noopener">explorer ↗</a>
+              <button
+                className="copy"
+                onClick={() => {
+                  const url = `${location.origin}/m/${m.id}`;
+                  const text = `$${m.symbol} en Garfio: su reserva es ${pair.symbol}, ${pair.label}.`;
+                  if (navigator.share) return void navigator.share({ title: `$${m.symbol}`, text, url }).catch(() => {});
+                  window.open(`https://x.com/intent/post?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`, "_blank", "noopener");
+                }}
+              >
+                compartir ↗
+              </button>
+              <FavoriteButton id={m.id} />
             </div>
           </div>
         </div>
 
         <div className="coin-stats">
-          <div><span className="k">Market cap</span><span className="v">{usd(v.mcapUsd, 0)}</span></div>
-          <div><span className="k">Precio</span><span className="v">${tiny(v.priceUsd)}</span></div>
-          <div><span className="k">Reserva</span><span className="v">{usd(v.reserveUsd, 0)}</span></div>
-          <div><span className="k">Trades 24 h</span><span className="v">{trades.data ? trades.data.length : "…"}</span></div>
+          <div><span className="k">Market cap</span><span className="v">{usd(priceUsd * SUPPLY, 0)}</span></div>
+          <div>
+            <span className="k">Precio</span>
+            <span className="v">
+              ${tiny(priceUsd)} {day && <span className={day.change >= 0 ? "buy" : "sell"}>{pct(day.change)}</span>}
+            </span>
+          </div>
+          <div><span className="k">Reserva</span><span className="v">{usd(reserveUsd, 0)}</span></div>
+          <div><span className="k">Vol 24 h</span><span className="v">{!trades.data ? "…" : day ? usd(day.volumeUsd, 0) : "–"}</span></div>
         </div>
 
-        <Chart points={points} />
+        <PriceChart ticks={ticks} open={openingPrice(pair.vPair0) * v.pairUsd * SUPPLY} />
+      </div>
 
-        <div className="tabs" role="tablist" style={{ marginTop: 20 }}>
+      {/* On a phone the trade panel sits right under the chart, before the activity tables. */}
+      <div className="coin-activity">
+        <div className="tabs" role="tablist" ref={tablist}>
           <button role="tab" aria-selected={tab === "trades"} onClick={() => setTab("trades")}>Trades</button>
           <button role="tab" aria-selected={tab === "holders"} onClick={() => setTab("holders")}>
-            Holders {trades.data && <span className="muted">({holders.length})</span>}
+            Holders {holders.data && <span className="muted">({holders.data.length})</span>}
           </button>
         </div>
 
         {tab === "trades" ? (
           recent.length ? (
+            <div className="table-wrap">
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>Cuenta</th>
+                    <th>Tipo</th>
+                    <th className="r">{pair.symbol}</th>
+                    <th className="r">${m.symbol}</th>
+                    <th className="r hide-sm">Cuándo</th>
+                    <th className="r">Tx</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {recent.map((t) => (
+                    <tr key={t.id}>
+                      <td>
+                        <span className="row">
+                          <Identity address={t.trader} />
+                          {t.trader === m.creator && <span className="badge">dev</span>}
+                          {t.trader === w.address && <span className="badge">tú</span>}
+                          {t.trader === LAUNCHPAD_ID && <span className="badge">recompra</span>}
+                          {t.pool && t.trader !== LAUNCHPAD_ID && <span className="badge">soroswap</span>}
+                        </span>
+                      </td>
+                      <td className={t.isBuy ? "buy" : "sell"}>{t.isBuy ? "▲ compra" : "▼ venta"}</td>
+                      <td className="r num">{fmt(fromUnits(t.pairAmt), pair.decimals)}</td>
+                      <td className="r num">{compact(fromUnits(t.memeAmt))}</td>
+                      <td className="r muted hide-sm">{ago(t.at, now)}</td>
+                      <td className="r"><a className="copy" href={txUrl(t.txHash)} target="_blank" rel="noopener">↗</a></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p className="muted" style={{ padding: "16px 0" }}>
+              {trades.error ? `No pude leer los trades: ${trades.error}` : trades.data ? "Sin trades en los últimos 7 días. Sé el primero." : "Leyendo trades…"}
+            </p>
+          )
+        ) : (
+          <div className="table-wrap">
             <table className="table">
               <thead>
-                <tr>
-                  <th>Cuenta</th>
-                  <th>Tipo</th>
-                  <th className="r">{pair.symbol}</th>
-                  <th className="r">${m.symbol}</th>
-                  <th className="r hide-sm">Cuándo</th>
-                  <th className="r">Tx</th>
-                </tr>
+                <tr><th>#</th><th>Cuenta</th><th className="r">% del supply</th><th className="r">${m.symbol}</th></tr>
               </thead>
               <tbody>
-                {recent.map((t) => (
-                  <tr key={t.id}>
-                    <td><Identity address={t.trader} /></td>
-                    <td className={t.isBuy ? "buy" : "sell"}>{t.isBuy ? "▲ compra" : "▼ venta"}</td>
-                    <td className="r num">{fmt(fromUnits(t.pairAmt), pair.decimals)}</td>
-                    <td className="r num">{compact(fromUnits(t.memeAmt))}</td>
-                    <td className="r muted hide-sm">{ago(t.at, now)}</td>
-                    <td className="r"><a className="copy" href={txUrl(t.txHash)} target="_blank" rel="noopener">↗</a></td>
+                <tr>
+                  <td className="muted">–</td>
+                  <td><span className="muted">{m.pool ? "Pool en Soroswap" : "Curva (sin vender)"}</span></td>
+                  <td className="r num">{fmt((unsold / SUPPLY) * 100, 1)}%</td>
+                  <td className="r num">{compact(unsold)}</td>
+                </tr>
+                {(holders.data ?? []).map((h, i) => (
+                  <tr key={h.address}>
+                    <td className="muted">{i + 1}</td>
+                    <td><Identity address={h.address} /></td>
+                    <td className="r num">{fmt((fromUnits(h.amount) / SUPPLY) * 100, 2)}%</td>
+                    <td className="r num">{compact(fromUnits(h.amount))}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
-          ) : (
-            <p className="muted" style={{ padding: "16px 0" }}>
-              {trades.error ? `No pude leer los trades: ${trades.error}` : trades.data ? "Sin trades en las últimas 24 h. Sé el primero." : "Leyendo trades…"}
-            </p>
-          )
-        ) : (
-          <table className="table">
-            <thead>
-              <tr><th>#</th><th>Cuenta</th><th className="r">% del supply</th><th className="r">${m.symbol}</th></tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td className="muted">–</td>
-                <td><span className="muted">Curva (sin vender)</span></td>
-                <td className="r num">{fmt(((FOR_SALE - fromUnits(m.sold)) / SUPPLY) * 100, 1)}%</td>
-                <td className="r num">{compact(FOR_SALE - fromUnits(m.sold))}</td>
-              </tr>
-              {holders.map((h, i) => (
-                <tr key={h.address}>
-                  <td className="muted">{i + 1}</td>
-                  <td><Identity address={h.address} /></td>
-                  <td className="r num">{fmt((fromUnits(h.amount) / SUPPLY) * 100, 2)}%</td>
-                  <td className="r num">{compact(fromUnits(h.amount))}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+            <p className="small muted" style={{ paddingTop: 8 }}>Cuenta las wallets que compraron o vendieron en la curva.</p>
+          </div>
         )}
       </div>
 
@@ -177,9 +232,11 @@ export default function CoinPage() {
           pair={pair}
           memeBalance={balances.data?.[m.id] ?? 0n}
           pairBalance={balances.data ? (balances.data[pair.id] ?? 0n) : null}
+          pool={pool.data ?? null}
           onDone={() => {
             meme.refresh();
             trades.refresh();
+            pool.refresh();
             balances.refresh();
           }}
         />
@@ -189,10 +246,10 @@ export default function CoinPage() {
             <h3>Curva de bonding</h3>
             <span className="num">{m.graduated ? "graduada" : `${fmt(g, 1)}%`}</span>
           </div>
-          <div className="progress"><i style={{ width: `${g}%` }} /></div>
+          <Progress value={g} label="Curva vendida" />
           <p className="small ink2">
             {m.graduated
-              ? "La curva vendió sus 800M. Esta meme ya se graduó."
+              ? "La curva vendió sus 800M y la liquidez pasó a Soroswap."
               : `Faltan ~${fmt(toGrad, pair.decimals)} ${pair.symbol} para graduar. Quedan ${compact(FOR_SALE - fromUnits(m.sold))} de 800M a la venta.`}
           </p>
         </div>
@@ -203,22 +260,34 @@ export default function CoinPage() {
             <span className="badge">{pair.symbol}</span>
           </div>
           <div className="between small">
-            <span className="muted">En reserva</span>
-            <span className="num">{fmt(fromUnits(m.real_pair), pair.decimals)} {pair.symbol} · {usd(v.reserveUsd, 0)}</span>
+            <span className="muted">{m.pool ? "En el pool" : "En reserva"}</span>
+            <span className="num">{fmt(fromUnits(reserve), pair.decimals)} {pair.symbol} · {usd(reserveUsd, 0)}</span>
           </div>
           <div className="between small">
             <span className="muted">1 {pair.symbol}</span>
-            <span className="num">{usd(v.pairUsd, pair.symbol === "tNVDA" ? 2 : 4)}</span>
+            <span className="num">{usd(v.pairUsd, 4)}</span>
           </div>
           <p className="small ink2">
-            {pair.yieldPct !== null
-              ? `La reserva rinde ~${fmt(pair.yieldPct, 1)}% anual: el precio en dólares sube aunque nadie opere.`
-              : "La reserva sigue a la acción: si NVDA sube, la meme sube con ella."}
+            La reserva es {pair.label} y rinde {fmt(prices.yieldPct(pair.symbol) ?? 0, 2)}% anual en {pair.currency}: su
+            valor sube aunque nadie opere.
           </p>
-          <div className="split">
-            <div><span className="k">Desde que abriste</span><span className={`v ${total >= 0 ? "buy" : "sell"}`}>{pct(total)}</span></div>
-            <div><span className="k">Por la curva</span><span className="v">{pct(curveChg)}</span></div>
-            <div><span className="k">Por el RWA</span><span className="v">{pct(pairChg)}</span></div>
+          <div className="split two">
+            <div>
+              <span className="k">Rinde hoy</span>
+              <span className="v">{earning ? `${fmt(earning.daily, 2)} ${pair.currency}` : "…"}</span>
+            </div>
+            <div>
+              <span className="k">Ha rendido</span>
+              <span className="v">{earning && trades.data ? `${fmt(earning.since, 2)} ${pair.currency}` : "…"}</span>
+            </div>
+          </div>
+          <div className="between small">
+            <span className="muted">Vault de recompra</span>
+            <span className="num">{fmt(fromUnits(m.vault), pair.decimals)} {pair.symbol} · {usd(fromUnits(m.vault) * v.pairUsd, 2)}</span>
+          </div>
+          <div className="between small">
+            <span className="muted">Quemado por recompras</span>
+            <span className="num">{compact(fromUnits(m.burned))} ${m.symbol}</span>
           </div>
         </div>
       </aside>

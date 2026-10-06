@@ -6,20 +6,25 @@ import { calls, txReturn } from "@/lib/chain";
 import { PAIRS } from "@/lib/config";
 import { artSeed } from "@/lib/avatar";
 import { explain } from "@/lib/errors";
-import { fmt } from "@/lib/units";
+import { fmt, fromUnits, toUnits } from "@/lib/units";
 import { useWallet } from "@/lib/wallet/WalletProvider";
+import { useListedPairs } from "@/hooks/useListedPairs";
 import { useTx } from "@/hooks/useTx";
 import { TokenArt } from "@/components/Art";
 import { Identity } from "@/components/Identity";
 import { TxLog } from "@/components/TxLink";
+import { Progress } from "@/components/Progress";
+import { YieldBadge } from "@/components/YieldBadge";
 
 export default function Create() {
   const router = useRouter();
   const w = useWallet();
   const tx = useTx();
+  const listed = useListedPairs();
   const [name, setName] = useState("");
   const [symbol, setSymbol] = useState("");
   const [pair, setPair] = useState(PAIRS[0].id);
+  const [devBuy, setDevBuy] = useState("");
   const [step, setStep] = useState("");
 
   const sym = symbol.trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
@@ -29,8 +34,14 @@ export default function Create() {
     e.preventDefault();
     if (!w.address) return tx.setError("Entra con tu wallet primero (arriba a la derecha).");
     if (!name.trim() || !sym) return tx.setError("Ponle nombre y ticker.");
+    let dev = 0n;
+    try {
+      if (devBuy.trim()) dev = toUnits(devBuy);
+    } catch (err) {
+      return tx.setError((err as Error).message);
+    }
     setStep("Desplegando tu token…");
-    const hash = await tx.send(calls.create(w.address, name.trim(), sym, pair), `creaste $${sym}`);
+    const hash = await tx.send(calls.create(w.address, name.trim(), sym, pair, dev), `creaste $${sym}`);
     if (!hash) return setStep("");
     try {
       const meme = await txReturn<string>(hash);
@@ -59,7 +70,7 @@ export default function Create() {
         <div className="field">
           <span>Respaldo de la reserva</span>
           <div className="pair-pick" role="radiogroup">
-            {PAIRS.map((x) => (
+            {listed.map((x) => (
               <button
                 key={x.id}
                 type="button"
@@ -73,15 +84,27 @@ export default function Create() {
                   <b>{x.symbol}</b> <span className="muted">· {x.name}</span>
                   <span className="small ink2" style={{ display: "block" }}>{x.label}</span>
                 </span>
-                {x.yieldPct !== null ? (
-                  <span className="badge yield">+{fmt(x.yieldPct, 1)}%</span>
-                ) : (
-                  <span className="badge">acción</span>
-                )}
+                <YieldBadge pair={x} suffix="" />
               </button>
             ))}
           </div>
         </div>
+
+        <label className="field">
+          <span>Compra inicial en {p.symbol} (opcional)</span>
+          <input
+            className="input"
+            inputMode="decimal"
+            value={devBuy}
+            placeholder="0"
+            onChange={(e) => setDevBuy(e.target.value)}
+          />
+          <span className="small muted">Se compra en la misma transacción, antes que nadie.</span>
+        </label>
+
+        <p className="small muted">
+          Crear cuesta {fmt(fromUnits(p.createFee), p.decimals)} {p.symbol}, que entran al vault de recompra de tu moneda.
+        </p>
 
         <button className="btn primary block lg" type="submit" disabled={tx.busy || !!step}>
           {step || "Crear moneda"}
@@ -96,18 +119,20 @@ export default function Create() {
           <div className="row" style={{ gap: 12 }}>
             <TokenArt seed={artSeed({ symbol: sym || "TACO", name: name || "Taco Coin" })} size={96} />
             <div className="stack" style={{ gap: 4, minWidth: 0 }}>
-              <b style={{ fontSize: 16 }}>${sym || "TACO"}</b>
+              <b style={{ fontSize: "1rem" }}>${sym || "TACO"}</b>
               <span className="ink2">{name || "Taco Coin"}</span>
               {w.address && <span className="small muted row">por <Identity address={w.address} size={16} /></span>}
               <span className="row"><span className="badge">{p.symbol}</span></span>
             </div>
           </div>
-          <div className="progress"><i style={{ width: "0%" }} /></div>
+          <Progress value={0} />
         </div>
         <div className="panel stack small ink2" style={{ gap: 8 }}>
           <span>• Supply fijo de 1B: 800M se venden en la curva.</span>
-          <span>• La reserva se guarda en {p.symbol}, no en XLM.</span>
-          <span>• Cobras 0.5% de cada compra y venta.</span>
+          <span>• La reserva se guarda en {p.symbol}, que rinde aunque nadie opere.</span>
+          <span>• Al venderse los 800M, la liquidez pasa a Soroswap y queda bloqueada.</span>
+          <span>• Cobras 0.5% de cada compra y venta en la curva, en {p.symbol}.</span>
+          <span>• Otro 0.25% va al vault de tu moneda: tras graduar, recompra y quema.</span>
           <span>• La imagen se genera del ticker y el nombre.</span>
         </div>
       </div>
