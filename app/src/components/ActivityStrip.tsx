@@ -13,7 +13,7 @@ export function ActivityStrip() {
   const { rows, activity } = useMarket();
   const bySymbol = new Map(rows.map((r) => [r.m.id, r]));
   const trades = [...(activity.data ?? [])].reverse().slice(0, 24);
-  if (!trades.length) return <div className="activity" style={{ height: 32 }} />;
+  if (!trades.length) return <div className="activity"><span className="activity-label">Última hora</span></div>;
 
   const items = trades.map((t) => {
     const r = bySymbol.get(t.meme);
@@ -25,7 +25,7 @@ export function ActivityStrip() {
         className="act"
       >
         <Identity address={t.trader} size={20} />
-        <span>{t.trader === LAUNCHPAD_ID ? "▲ recompró" : t.isBuy ? "▲ compró" : "▼ vendió"}</span>
+        <span className={t.isBuy ? undefined : "sell"}>{t.trader === LAUNCHPAD_ID ? "▲ recompró" : t.isBuy ? "▲ compró" : "▼ vendió"}</span>
         <span className="num">
           {t.isBuy
             ? `${fmt(fromUnits(t.pairAmt), pair?.decimals ?? 2)} ${pair?.symbol ?? ""}`
@@ -40,9 +40,12 @@ export function ActivityStrip() {
 
   return (
     <div className="activity" aria-label="Actividad en vivo">
-      <div className="activity-track">
-        {items}
-        <span aria-hidden="true" style={{ display: "contents" }}>{items}</span>
+      <span className="activity-label">Última hora</span>
+      <div className="activity-viewport">
+        <div className="activity-track">
+          {items}
+          <span aria-hidden="true" style={{ display: "contents" }}>{items}</span>
+        </div>
       </div>
     </div>
   );

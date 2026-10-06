@@ -184,7 +184,7 @@ export function TradePanel({
   // Sold out but not migrated yet: the only thing to do is open the pool.
   if (meme.graduated && !meme.pool) {
     return (
-      <div className="panel stack">
+      <div className="panel stack coupon" data-label="Recorte y abra el pool">
         <h3>Graduada</h3>
         <p className="small ink2">La curva se vendió completa. Falta abrir su pool en Soroswap; cualquiera puede hacerlo.</p>
         {w.address && (
@@ -207,7 +207,7 @@ export function TradePanel({
 
   return (
     <>
-      <div className="panel stack">
+      <div className="panel stack coupon" data-label={`Recorte y opere $${meme.symbol}`}>
         {meme.pool && (
           <p className="small ink2">
             Graduada: se opera en su pool de Soroswap, con la liquidez bloqueada para siempre.{" "}

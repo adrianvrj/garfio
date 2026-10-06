@@ -51,6 +51,13 @@ export default function CoinPage() {
   const traders = [...new Set((trades.data ?? []).map((t) => t.trader))];
   const holders = usePoll(() => fetchHolders(id, traders), 15_000, `${id}|${traders.join(",")}`);
 
+  // Opening a coin starts at its headline. The page first renders a short skeleton, so the browser
+  // clamps the scroll carried over from the list and Next sees no reason to move; then the page grows
+  // and leaves the reader mid-article.
+  useLayoutEffect(() => {
+    window.scrollTo(0, 0);
+  }, [id]);
+
   // Park the underline under the selected tab; CSS slides it there.
   const tablist = useRef<HTMLDivElement>(null);
   useLayoutEffect(() => {
@@ -90,20 +97,29 @@ export default function CoinPage() {
     since: accrued(trades.data ?? [], reserve, now, bond.nav, bond.rateBps),
   };
 
+  const date = new Date(now).toLocaleDateString("es-MX", { weekday: "long", day: "numeric", month: "long" });
   return (
+    <>
+    <div className="folio">
+      <b>The Hooks Daily</b>
+      <span>{date}</span>
+      <span>Mercados · {pair.symbol}</span>
+      <span>Pág. ${m.symbol}</span>
+    </div>
     <div className="coin">
       <div className="coin-main">
         <div className="coin-head">
-          <TokenArt seed={artSeed(m)} size={72} />
-          <div className="stack" style={{ gap: 4, minWidth: 0 }}>
-            <h1>
-              ${m.symbol} <span className="ink2" style={{ fontWeight: 400 }}>{m.name}</span>
-            </h1>
-            <div className="row small muted" style={{ flexWrap: "wrap" }}>
-              <Identity address={m.creator} size={16} />
+          <TokenArt seed={artSeed(m)} size={140} />
+          <div className="stack" style={{ gap: 8, minWidth: 0 }}>
+            <span className="kicker">
+              {m.pool ? "Graduada · Soroswap" : `Curva al ${fmt(g, 1)}%`} · Respaldo {pair.symbol}
+            </span>
+            <h1>${m.symbol}</h1>
+            <p className="deck">{m.name}, respaldada por {pair.label}.</p>
+            <div className="byline">
+              Por <Identity address={m.creator} size={16} />
               {dev.data !== null && <span>· el dev tiene {fmt((fromUnits(dev.data) / SUPPLY) * 100, 2)}% del supply</span>}
               <span>· {ago(Number(m.created_at) * 1000, now)}</span>
-              <span className="badge">{pair.symbol}</span>
               <YieldBadge pair={pair} />
               <button
                 className="copy"
@@ -121,7 +137,7 @@ export default function CoinPage() {
                 className="copy"
                 onClick={() => {
                   const url = `${location.origin}/m/${m.id}`;
-                  const text = `$${m.symbol} en Garfio: su reserva es ${pair.symbol}, ${pair.label}.`;
+                  const text = `$${m.symbol} en Hooks: su reserva es ${pair.symbol}, ${pair.label}.`;
                   if (navigator.share) return void navigator.share({ title: `$${m.symbol}`, text, url }).catch(() => {});
                   window.open(`https://x.com/intent/post?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`, "_blank", "noopener");
                 }}
@@ -292,5 +308,6 @@ export default function CoinPage() {
         </div>
       </aside>
     </div>
+    </>
   );
 }

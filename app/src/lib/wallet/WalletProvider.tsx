@@ -175,7 +175,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   return (
     <CavosProvider
       config={{ appId: CAVOS_APP_ID, environment: CAVOS_ENV, chains: ["stellar"], network: NETWORK, appSalt: "garfio" }}
-      modal={{ appName: "Garfio" }}
+      modal={{ appName: "Hooks" }}
     >
       <CavosBridge apiRef={cavos} onAddress={setCavosAddr} />
       {tree}

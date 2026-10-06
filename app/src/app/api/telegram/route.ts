@@ -29,7 +29,7 @@ export async function POST(request: Request) {
 
   try {
     if (command === "/start" || command === "/help") {
-      await send(chat, HELP, [[{ text: "Abrir Garfio", url: SITE }]]);
+      await send(chat, HELP, [[{ text: "Abrir Hooks", url: SITE }]]);
       return new Response("ok");
     }
     const [memes, rates] = await Promise.all([fetchMemes(), getRates().catch(() => null)]);
