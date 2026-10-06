@@ -6,7 +6,7 @@ import { gradProgress, pricePair, SUPPLY } from "@/lib/curve";
 import { bondUsd, getRates } from "@/lib/rates";
 import { compact, fmt, fromUnits, usd } from "@/lib/units";
 
-export const alt = "Memecoin en Garfio, respaldada por un bono soberano tokenizado";
+export const alt = "Memecoin en Hooks, respaldada por un bono soberano tokenizado";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -23,31 +23,30 @@ export default async function Image({ params }: { params: Promise<{ id: string }
 
   const stat = (k: string, v: string) => (
     <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-      <span style={{ fontSize: 24, color: "#5d5d5d", textTransform: "uppercase", letterSpacing: 2 }}>{k}</span>
+      <span style={{ fontSize: 24, color: "#675f55", textTransform: "uppercase", letterSpacing: 2 }}>{k}</span>
       <span style={{ fontSize: 44, fontWeight: 700 }}>{v}</span>
     </div>
   );
 
+  const ink = "#161412";
+  const paper = "#f2ede4";
+  const red = "#c9261b";
   return new ImageResponse(
     (
-      <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", justifyContent: "space-between", padding: 64, background: "#ffffff", color: "#0b0b0b" }}>
-        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          <span style={{ fontSize: 28, color: "#5d5d5d" }}>garfio · {pair ? `respaldada por ${pair.symbol}, ${pair.label}` : "memecoin"}</span>
-          <span style={{ fontSize: 120, fontWeight: 800, lineHeight: 1 }}>${m.symbol}</span>
-          <span style={{ fontSize: 40 }}>{m.name}</span>
+      <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", background: paper, color: ink, padding: 48, gap: 20 }}>
+        <div style={{ display: "flex", justifyContent: "center", background: red, borderTop: `8px solid ${ink}`, borderBottom: `8px solid ${ink}`, padding: "8px 0" }}>
+          <span style={{ fontSize: 64, fontWeight: 900, color: paper, fontStyle: "italic", letterSpacing: 2 }}>THE HOOKS DAILY</span>
         </div>
-        <div style={{ display: "flex", gap: 72 }}>
+        <span style={{ fontSize: 24, fontWeight: 700, color: red, textTransform: "uppercase", letterSpacing: 3 }}>
+          {pair ? `Respaldada por ${pair.symbol}, ${pair.label}` : "Memecoin"}
+        </span>
+        <span style={{ fontSize: 132, fontWeight: 900, lineHeight: 1, letterSpacing: -2 }}>${m.symbol}</span>
+        <span style={{ fontSize: 36, fontStyle: "italic" }}>{m.name}</span>
+        <div style={{ display: "flex", gap: 64, borderTop: `4px solid ${ink}`, paddingTop: 16, marginTop: "auto" }}>
           {stat("Market cap", usd(price * pairUsd * SUPPLY, 0))}
           {stat("Reserva", `${compact(fromUnits(reserve))} ${pair?.symbol ?? ""}`)}
           {rate ? stat("Rinde", `${fmt(rate / 100, 2)}% anual`) : null}
-        </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          <span style={{ fontSize: 24, color: "#5d5d5d" }}>
-            {m.pool ? "Graduada: liquidez bloqueada en Soroswap" : `${fmt(progress, 1)}% de la curva vendida`}
-          </span>
-          <div style={{ display: "flex", width: "100%", height: 20, border: "3px solid #0b0b0b" }}>
-            <div style={{ width: `${progress}%`, height: "100%", background: "#0b0b0b" }} />
-          </div>
+          {stat("Curva", m.pool ? "Graduada" : `${fmt(progress, 1)}%`)}
         </div>
       </div>
     ),

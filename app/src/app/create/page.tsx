@@ -54,8 +54,12 @@ export default function Create() {
 
   return (
     <div className="create">
-      <form className="panel stack" style={{ gap: 18 }} onSubmit={submit}>
-        <h1>Crear moneda</h1>
+      <form className="stack coupon" data-label="Aviso clasificado · llene a mano" style={{ gap: 18, padding: "28px 24px 24px" }} onSubmit={submit}>
+        <div className="stack" style={{ gap: 6 }}>
+          <span className="kicker">Clasificados · Nuevas emisiones</span>
+          <h1>Publica tu meme</h1>
+          <p className="deck ink2" style={{ fontStyle: "italic", fontSize: "1.125rem" }}>Sale en la edición de hoy, con su reserva en un bono soberano.</p>
+        </div>
         <div className="row" style={{ gap: 12, alignItems: "stretch" }}>
           <label className="field" style={{ flex: 2 }}>
             <span>Nombre</span>
@@ -107,33 +111,29 @@ export default function Create() {
         </p>
 
         <button className="btn primary block lg" type="submit" disabled={tx.busy || !!step}>
-          {step || "Crear moneda"}
+          {step || "Publicar mi meme"}
         </button>
         <div className="err" role="status">{tx.error}</div>
         <TxLog log={tx.log} />
       </form>
 
-      <div className="stack">
-        <span className="section-title">Así se verá</span>
-        <div className="panel stack">
-          <div className="row" style={{ gap: 12 }}>
-            <TokenArt seed={artSeed({ symbol: sym || "TACO", name: name || "Taco Coin" })} size={96} />
-            <div className="stack" style={{ gap: 4, minWidth: 0 }}>
-              <b style={{ fontSize: "1rem" }}>${sym || "TACO"}</b>
-              <span className="ink2">{name || "Taco Coin"}</span>
-              {w.address && <span className="small muted row">por <Identity address={w.address} size={16} /></span>}
-              <span className="row"><span className="badge">{p.symbol}</span></span>
-            </div>
-          </div>
-          <Progress value={0} />
+      <div className="stack" style={{ gap: 24 }}>
+        <div className="rule-head"><h2>Así saldrá impresa</h2></div>
+        <div className="card" style={{ marginTop: -12 }}>
+          <TokenArt seed={artSeed({ symbol: sym || "TACO", name: name || "Taco Coin" })} wide />
+          <span className="kicker">{p.symbol} · {name || "Taco Coin"}</span>
+          <h3>${sym || "TACO"} sale a la venta</h3>
+          {w.address && <span className="byline">Por <Identity address={w.address} size={14} /> · ahora</span>}
+          <div className="grad"><Progress value={0} /><span>0%</span></div>
         </div>
-        <div className="panel stack small ink2" style={{ gap: 8 }}>
-          <span>• Supply fijo de 1B: 800M se venden en la curva.</span>
-          <span>• La reserva se guarda en {p.symbol}, que rinde aunque nadie opere.</span>
-          <span>• Al venderse los 800M, la liquidez pasa a Soroswap y queda bloqueada.</span>
-          <span>• Cobras 0.5% de cada compra y venta en la curva, en {p.symbol}.</span>
-          <span>• Otro 0.25% va al vault de tu moneda: tras graduar, recompra y quema.</span>
-          <span>• La imagen se genera del ticker y el nombre.</span>
+        <div className="rule-head"><h2>Letra pequeña</h2></div>
+        <div className="fine-print" style={{ marginTop: -12 }}>
+          <span>Supply fijo de 1B: 800M se venden en la curva.</span>
+          <span>La reserva se guarda en {p.symbol}, que rinde aunque nadie opere.</span>
+          <span>Al venderse los 800M, la liquidez pasa a Soroswap y queda bloqueada.</span>
+          <span>Cobras 0.5% de cada compra y venta en la curva, en {p.symbol}.</span>
+          <span>Otro 0.25% va al vault de tu moneda: tras graduar, recompra y quema.</span>
+          <span>La foto se busca por el nombre en Wikipedia; mientras no se puedan subir imágenes, elige un nombre que se pueda fotografiar.</span>
         </div>
       </div>
     </div>

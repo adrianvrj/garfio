@@ -1,8 +1,8 @@
-# Garfio
+# Hooks
 
-**Memecoins backed by sovereign bonds, on Stellar.** Every memecoin launched on Garfio keeps its bonding-curve reserve in an Etherfuse stablebond (Mexico's CETES, Brazil's Tesouro) instead of XLM. Every meme launched buys sovereign debt, the reserve earns the bond's yield even when nobody trades, and a quarter of every fee goes to a vault that buys the meme back and burns it once it trades on Soroswap.
+**Memecoins backed by sovereign bonds, on Stellar.** Every memecoin launched on Hooks keeps its bonding-curve reserve in an Etherfuse stablebond (Mexico's CETES, Brazil's Tesouro) instead of XLM. Every meme launched buys sovereign debt, the reserve earns the bond's yield even when nobody trades, and a quarter of every fee goes to a vault that buys the meme back and burns it once it trades on Soroswap.
 
-Garfio is the retail channel for Stellar's tokenized assets.
+Hooks is the retail channel for Stellar's tokenized assets.
 
 ## The pitch
 
@@ -28,9 +28,9 @@ Robinhood launched its chain on July 1, 2026, to trade tokenized stocks. Memecoi
 
 Pairing memes with real assets turned speculation into demand for those assets. In CEO Vlad Tenev's words, the chain built for real-world assets "works great for memes too".
 
-### Garfio brings that pattern to Stellar's strongest asset class
+### Hooks brings that pattern to Stellar's strongest asset class
 
-| Lesson from Robinhood Chain | In Garfio |
+| Lesson from Robinhood Chain | In Hooks |
 | --- | --- |
 | Memes are the distribution channel for RWAs | Every curve's reserve is a sovereign bond. The home page counts the bonds memes have bought |
 | The paired asset has to give holders something | The reserve earns 5.55% (CETES) or 11.55% (Tesouro) a year. A quarter of every fee goes to a vault that buys the meme back and burns it |

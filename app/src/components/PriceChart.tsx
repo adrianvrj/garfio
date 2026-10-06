@@ -34,7 +34,7 @@ function themed() {
       layout: {
         background: { type: ColorType.Solid, color: css("--bg") },
         textColor: css("--muted"),
-        fontFamily: `${css("--font-jetbrains")}, ui-monospace, monospace`,
+        fontFamily: `${css("--font-franklin")}, "Helvetica Neue", Arial, sans-serif`,
       },
       grid: { vertLines: { color: line }, horzLines: { color: line } },
       rightPriceScale: { borderColor: line },
@@ -42,10 +42,10 @@ function themed() {
       crosshair: { vertLine: { labelBackgroundColor: ink }, horzLine: { labelBackgroundColor: ink } },
     },
     candles: {
-      upColor: css("--up"),
-      downColor: css("--down"),
-      wickUpColor: css("--up"),
-      wickDownColor: css("--down"),
+      upColor: css("--chart-up"),
+      downColor: css("--chart-down"),
+      wickUpColor: css("--chart-up"),
+      wickDownColor: css("--chart-down"),
       borderVisible: false,
     },
     volume: { color: fade(css("--muted"), 0.35) },
@@ -120,7 +120,7 @@ export function PriceChart({ ticks, open }: { ticks: Tick[]; open: number }) {
   }, [ticks, interval, open]);
 
   return (
-    <div className="price-chart">
+    <figure className="price-chart">
       <div className="chips" role="group" aria-label="Intervalo de las velas">
         {INTERVALS.map((i) => (
           <button key={i.seconds} className="chip" aria-pressed={interval === i.seconds} onClick={() => setPicked(i.seconds)}>
@@ -129,7 +129,10 @@ export function PriceChart({ ticks, open }: { ticks: Tick[]; open: number }) {
         ))}
       </div>
       <div ref={box} className="chart" role="img" aria-label="Velas del market cap en USD" />
-      {!ticks.length && <p className="muted small">Sin trades todavía: la primera vela aparece con la primera compra.</p>}
-    </div>
+      <figcaption>
+        <b>Fig. 1</b> · Market cap en dólares, en velas de {INTERVALS.find((i) => i.seconds === interval)?.label ?? "…"}, con el volumen abajo.
+        {!ticks.length && " Sin trades todavía: la primera vela aparece con la primera compra."}
+      </figcaption>
+    </figure>
   );
 }

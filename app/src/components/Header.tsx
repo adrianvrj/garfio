@@ -11,6 +11,7 @@ import { usePresence } from "@/hooks/usePresence";
 import { explain } from "@/lib/errors";
 import { short } from "@/lib/units";
 import { UserAvatar } from "./Art";
+import { Logo } from "./Logo";
 import { DepositModal, openDeposit } from "./DepositModal";
 import { ProfileDrawer } from "./ProfileDrawer";
 
@@ -58,7 +59,10 @@ export function Header() {
   return (
     <header className="header" ref={bar}>
       <div className="header-inner">
-        <Link href="/" className="logo">garfio</Link>
+        <Link href="/" className="logo">
+          <Logo />
+          <span>The Hooks Daily</span>
+        </Link>
 
         <form
           className="search"
@@ -107,7 +111,10 @@ export function Header() {
         <div className="modal-bg" data-open={loginView.shown || undefined} onClick={() => setLogin(false)}>
           <div className="modal" role="dialog" aria-modal="true" aria-labelledby="login-title" ref={anchor} onClick={(e) => e.stopPropagation()}>
             <div className="between">
-              <h3 id="login-title">Entrar</h3>
+              <span className="stack" style={{ gap: 4 }}>
+                <span className="kicker">Gratis, sin papel</span>
+                <h3 id="login-title">Suscríbete</h3>
+              </span>
               <button className="btn ghost sm" onClick={() => setLogin(false)} aria-label="Cerrar">✕</button>
             </div>
             <div className="options">
@@ -147,7 +154,7 @@ export function Header() {
                 <span aria-hidden="true">→</span>
               </button>
             </div>
-            <p className="muted small">Garfio corre en testnet: nada de esto es dinero real.</p>
+            <p className="muted small">The Hooks Daily circula en testnet: nada de esto es dinero real.</p>
             {err && <div className="err">{err}</div>}
           </div>
         </div>,
