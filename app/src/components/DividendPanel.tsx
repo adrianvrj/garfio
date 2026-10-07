@@ -10,19 +10,18 @@ import { usePoll } from "@/hooks/usePoll";
 import { TxLog } from "./TxLink";
 
 /**
- * The meme's dividends: part of what reaches its vault is paid to whoever holds the meme, by
- * balance, in the meme's bond. `distribute` hands what the launchpad holds to the token, and
- * each holder claims their part. Anyone can send either.
+ * The meme's dividends: every trade on its curve pays part of its fee to whoever held the meme
+ * before it, by balance, in the meme's bond. Each holder claims their part whenever they like.
  */
 export function DividendPanel({ meme, pair, onDone }: { meme: Meme; pair: PairInfo; onDone: () => void }) {
   const w = useWallet();
-  const { tx, distribute, claim } = useDividendTx();
+  const { tx, claim } = useDividendTx();
   const pairUsd = usePrices().usd(pair.symbol);
-  const mine = usePoll(w.address ? () => fetchClaimable(meme.id, w.address!) : null, 10_000, `${meme.id}|${w.address}`);
+  const mine = usePoll(w.address ? () => fetchClaimable(meme.id, w.address!) : null, 10_000, `${meme.id}|${w.address}|${meme.dividends}`);
   const owed = mine.data ?? 0n;
 
-  async function act(send: Promise<string | null>) {
-    if (await send) {
+  async function onClaim() {
+    if (await claim(meme, owed)) {
       mine.refresh();
       onDone();
     }
@@ -32,11 +31,11 @@ export function DividendPanel({ meme, pair, onDone }: { meme: Meme; pair: PairIn
     <div className="panel stack">
       <div className="between">
         <h3>Dividendos</h3>
-        <span className="num">{fmt(fromUnits(meme.div_pending), pair.decimals)} {pair.symbol} por repartir</span>
+        <span className="num">{fmt(fromUnits(meme.dividends), pair.decimals)} {pair.symbol} repartidos</span>
       </div>
       <p className="small ink2">
-        Parte de lo que entra al vault se reparte entre quienes tienen ${meme.symbol}, según cuánto tengan, y se paga
-        en {pair.symbol}. Cualquiera puede repartir; cada quien cobra lo suyo.
+        Cada compra y venta en la curva paga parte de su fee a quienes ya tenían ${meme.symbol}, según cuánto tenían, en{" "}
+        {pair.symbol}.
       </p>
       {w.address && (
         <div className="between">
@@ -47,13 +46,8 @@ export function DividendPanel({ meme, pair, onDone }: { meme: Meme; pair: PairIn
           </span>
         </div>
       )}
-      {w.address && meme.div_pending > 0n && (
-        <button className="btn block" onClick={() => act(distribute(meme))} disabled={tx.busy}>
-          {tx.busy ? "Firmando…" : "Repartir"}
-        </button>
-      )}
       {w.address && owed > 0n && (
-        <button className="btn block" onClick={() => act(claim(meme, owed))} disabled={tx.busy}>
+        <button className="btn block" onClick={onClaim} disabled={tx.busy}>
           {tx.busy ? "Firmando…" : `Cobrar ${pair.symbol}`}
         </button>
       )}

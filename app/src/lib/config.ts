@@ -72,7 +72,8 @@ export interface PairInfo {
   decimals: number;
 }
 
-const META: Record<PairSymbol, Pick<PairInfo, "name" | "label">> = {
+/** Copy for every Etherfuse bond we know, whether or not this deployment allows it. */
+const META: Partial<Record<string, Pick<PairInfo, "name" | "label">>> = {
   CETES: { name: "CETES", label: "deuda de México en pesos" },
   TESOURO: { name: "Tesouro", label: "deuda de Brasil en reales" },
   USTRY: { name: "US Treasury", label: "deuda de EE.UU. en dólares" },

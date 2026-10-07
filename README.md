@@ -48,10 +48,10 @@ It works on Stellar today because Etherfuse's bonds are there already, freely tr
 3. Create a meme backed by CETES or Tesouro, with a first buy in the same transaction.
 4. Make the last buy on a meme prepared at 95% (`demo.sh`). It graduates, and `migrate` opens its Soroswap pool with the liquidity locked for good.
 5. Trade it on Soroswap from the same page, and fire the vault's buyback and burn.
-6. Distribute the meme's dividends and claim them: the bond lands in each holder's wallet.
+6. Claim the meme's dividends from the Dividends page: every trade already paid them, and the bond lands in the holder's wallet.
 7. The backing panel: what the reserve earns per day in pesos, and the total of bonds bought by memes.
 
-Every step runs on testnet today (launchpad `CCUMQPTCERBE7N57WNMWSQRZFHKIYKQZC3U3JLGTVMKKP7F4OA7YA2UT`).
+Every step runs on testnet today (launchpad `CA3W7XW7TREX77B5EN3ZQOEZUBJ2M4FELRKQA42RCFPVMDYJ56SQ453W`).
 
 ### What we have not solved yet
 
@@ -92,7 +92,7 @@ Every step runs on testnet today (launchpad `CCUMQPTCERBE7N57WNMWSQRZFHKIYKQZC3U
 3. **Graduation.** When the 800M are sold, anyone calls `migrate`: the last 200M and the reserve open a Soroswap pool at the curve's final price, and the LP shares stay in the launchpad forever. Reserve the pool does not need goes to the vault.
 4. **Soroswap.** Once migrated, the meme trades against its pool. The app quotes and swaps through Soroswap's router on the same coin page, and its chart and trades go on from the pool's `swap` and `sync` events.
 5. **Buyback.** Anyone calls `buyback`: the vault spends up to 1% of the pool's bond reserve on the meme and burns it. The cap keeps each call too small to sandwich profitably against Soroswap's 0.3% fee.
-6. **Dividends.** `DIV_BPS` (5000 by default, set at deploy) of everything bound for the vault, the create fee, the 0.25% and the migration leftover, is owed to the meme's holders instead. Anyone calls `distribute`: the launchpad sends it to the meme's token, which spreads it by balance. Each holder, or anyone for them, calls `claim` on the token and gets the bond. The launchpad, the token and the meme's Soroswap pools never earn: `migrate` excludes the pool before seeding it, and an earlier pool's earnings go back to the holders.
+6. **Dividends.** `DIV_BPS` (5000 by default, set at deploy) of everything bound for the vault, the create fee, the 0.25% and the migration leftover, goes to the meme's holders instead, in the same transaction: the launchpad sends it to the meme's token, whose `notify` spreads it by balance, as Flap does on its curve. A buy pays the holders before the buyer gets their memes. Nothing waits to be distributed, so nobody can time a payout. Each holder, or anyone for them, calls `claim` on the token and gets the bond. A trade costs about 65% more CPU for it (1.26M → 2.07M instructions in the tests), far under the 400M limit. The launchpad, the token and the meme's Soroswap pools never earn: `migrate` excludes the pool before seeding it, and an earlier pool's earnings go back to the holders.
 
 The token keeps the accounting because Soroban forbids re-entry: the launchpad moves memes in `buy`, `sell`, `migrate` and `buyback`, and those transfers cannot call back into it. Every transfer and burn settles both sides first (an accumulated-per-share counter, as Flap does), earnings round down per holder and the rounding the counter leaves is carried to the next deposit, so claims never add up to more than was paid in.
 
@@ -119,10 +119,9 @@ The pairs are Etherfuse's sandbox stablebonds, real tokens on Stellar testnet, b
 
 ```bash
 echo 'ETHERFUSE_API_KEY=api_sand:...' >> .env.local       # sandbox key, business org with KYB approved
-./scripts/deploy.sh                                        # new launchpad wired to Soroswap; CETES, TESOURO, USTRY
+./scripts/deploy.sh                                        # new launchpad wired to Soroswap; CETES and TESOURO (USTRY is mainnet only)
 ./scripts/etherfuse-onramp.sh garfio-faucet 500 40 CETES   # stocks the treasury, per bond
 ./scripts/etherfuse-onramp.sh garfio-faucet 500 10 TESOURO
-./scripts/etherfuse-onramp.sh garfio-faucet 500 10 USTRY
 ./scripts/seed.sh                                          # seed accounts and example memes on each bond
 ./scripts/demo.sh CETES AJOLOTE "Ajolote Inu"              # a meme 95% of the way to graduating
 ```

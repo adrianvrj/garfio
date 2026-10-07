@@ -121,7 +121,9 @@ fn buy_matches_formula_and_splits_fees() {
 
     let c = t.lp.curve(&m);
     assert_eq!(c.fees_creator, DECIMALS / 2);
-    assert_eq!((c.vault, c.div_pending), (DECIMALS / 8, DECIMALS / 8));
+    assert_eq!((c.vault, c.dividends), (DECIMALS / 8, DECIMALS / 8));
+    // the holders' half already sits in the token
+    assert_eq!(TokenClient::new(&t.e, &t.cetes).balance(&m), DECIMALS / 8);
     assert_eq!(t.lp.protocol_fees(&t.cetes), DECIMALS / 4);
     assert_eq!(c.real_pair, pin - q_fee);
     assert_eq!(TokenClient::new(&t.e, &m).balance(&buyer), out);
@@ -221,7 +223,7 @@ fn pair_balance_covers_reserves_and_fees() {
     let c1 = t.lp.curve(&m1);
     let c2 = t.lp.curve(&m2);
     let owed = c1.real_pair + c2.real_pair + c1.fees_creator + c2.fees_creator + c1.vault + c2.vault
-        + c1.div_pending + c2.div_pending + t.lp.protocol_fees(&t.cetes);
+        + t.lp.protocol_fees(&t.cetes);
     let held = TokenClient::new(&t.e, &t.cetes).balance(&t.lp.address);
     assert!(held >= owed);
     assert!(held - owed < 10); // only rounding dust
@@ -274,8 +276,8 @@ fn migrate_seeds_pool_at_curve_price_and_locks_lp() {
     assert_eq!(pooled, FOR_POOL * before.v_pair / before.v_token);
     let c = t.lp.curve(&m);
     let left = before.real_pair - pooled;
-    assert_eq!(c.vault + c.div_pending - before.vault - before.div_pending, left);
-    assert_eq!(c.div_pending - before.div_pending, left * DIV_BPS as i128 / 10_000);
+    assert_eq!(c.vault + c.dividends - before.vault - before.dividends, left);
+    assert_eq!(c.dividends - before.dividends, left * DIV_BPS as i128 / 10_000);
     assert!(meme::Client::new(&t.e, &m).is_excluded(&pool));
     // every LP share but Soroswap's locked minimum is the launchpad's, for good
     let lp = PoolClient::new(&t.e, &pool);
@@ -285,7 +287,7 @@ fn migrate_seeds_pool_at_curve_price_and_locks_lp() {
     assert_eq!(t.lp.try_migrate(&m).unwrap_err().unwrap(), Error::Migrated.into());
 
     // what stays here is exactly the creator's fees, the vault, the dividends and the protocol's
-    let owed = c.fees_creator + c.vault + c.div_pending + t.lp.protocol_fees(&t.cetes);
+    let owed = c.fees_creator + c.vault + t.lp.protocol_fees(&t.cetes);
     assert_eq!(cetes.balance(&t.lp.address), owed);
 }
 
@@ -396,31 +398,37 @@ fn buyback_spends_the_vault_and_burns() {
 }
 
 #[test]
-fn distribute_pays_holders_by_balance() {
+fn every_trade_pays_the_holders_before_it() {
     let t = setup();
     let m = create(&t, &Address::generate(&t.e));
-    assert_eq!(t.lp.try_distribute(&m).unwrap_err().unwrap(), Error::NothingToDistribute.into());
+    let token = meme::Client::new(&t.e, &m);
     let (a, b) = (Address::generate(&t.e), Address::generate(&t.e));
     fund(&t, &a, 3_000 * DECIMALS);
     fund(&t, &b, 1_000 * DECIMALS);
-    t.lp.buy(&a, &m, &(3_000 * DECIMALS), &0);
-    t.lp.buy(&b, &m, &(1_000 * DECIMALS), &0);
 
-    let pending = t.lp.curve(&m).div_pending;
-    assert_eq!(t.lp.distribute(&m), pending);
-    assert_eq!(t.lp.curve(&m).div_pending, 0);
-    let token = meme::Client::new(&t.e, &m);
+    // nobody held before the first buy: its dividend waits for the next trade
+    t.lp.buy(&a, &m, &(1_000 * DECIMALS), &0);
+    assert_eq!(token.claimable(&a), 0);
+    // a held everything before b's buy, so a earns both fees and b none of its own
+    t.lp.buy(&b, &m, &(1_000 * DECIMALS), &0);
+    let paid = t.lp.curve(&m).dividends;
+    let ca = token.claimable(&a);
+    // rounding holds back a sliver, carried to the next payout
+    assert!(ca <= paid && paid - ca < paid / 1_000, "paid {paid}, a {ca}");
+    assert_eq!(token.claimable(&b), 0);
+
+    // after a sale both hold, and the seller's fee goes to what each holds after it
+    let sold = token.balance(&a) / 2;
+    t.lp.sell(&a, &m, &sold, &0);
+    let fee = t.lp.curve(&m).dividends - paid;
     let (ma, mb) = (token.balance(&a), token.balance(&b));
-    let (ca, cb) = (token.claimable(&a), token.claimable(&b));
-    // shares are balances, so each earns in proportion, give or take rounding
-    assert!((ca * mb - cb * ma).abs() <= ma.max(mb));
-    // rounding never pays out more, and what it holds back is carried to the next deposit
-    assert!(ca + cb <= pending && pending - ca - cb < pending / 1_000);
-    assert_eq!(token.claimable(&t.lp.address), 0);
+    let (ga, gb) = (token.claimable(&a) - ca, token.claimable(&b));
+    assert!(ga + gb <= fee + (paid - ca) && fee + (paid - ca) - ga - gb < fee / 1_000);
+    assert!((ga * mb - gb * ma).abs() <= ma.max(mb));
 
     let before = TokenClient::new(&t.e, &t.cetes).balance(&a);
-    assert_eq!(token.claim(&a), ca);
-    assert_eq!(TokenClient::new(&t.e, &t.cetes).balance(&a) - before, ca);
+    let got = token.claim(&a);
+    assert_eq!(TokenClient::new(&t.e, &t.cetes).balance(&a) - before, got);
 }
 
 #[test]
@@ -434,23 +442,20 @@ fn dividends_survive_migration_and_the_pool_never_earns() {
     let pool = t.factory.create_pair(&m, &t.cetes);
     TokenClient::new(&t.e, &m).transfer(&early, &pool, &(memes / 10));
     let token = meme::Client::new(&t.e, &m);
-    t.lp.distribute(&m);
-    assert!(token.claimable(&pool) > 0);
 
     let buyer = Address::generate(&t.e);
     fund(&t, &buyer, 20_000 * DECIMALS);
     t.lp.buy(&buyer, &m, &(20_000 * DECIMALS), &0);
+    assert!(token.claimable(&pool) > 0);
+    let owed = token.claimable(&buyer) + token.claimable(&early);
+    let paid = t.lp.curve(&m).dividends;
     t.lp.migrate(&m);
     assert!(token.is_excluded(&pool));
     assert_eq!(token.claimable(&pool), 0);
 
-    // the migration's leftover and the pool's forfeited share reach the holders
-    let owed = token.claimable(&buyer) + token.claimable(&early);
-    t.lp.distribute(&m);
-    let paid = token.claimable(&buyer) + token.claimable(&early) - owed;
-    assert!(paid > 0);
-    assert_eq!(token.claimable(&pool), 0);
-    // buybacks still run, against an excluded pool
+    // the migration's leftover reaches the holders in the same call, and buybacks still run
+    assert!(t.lp.curve(&m).dividends > paid);
+    assert!(token.claimable(&buyer) + token.claimable(&early) > owed);
     t.lp.buyback(&m);
     assert_eq!(token.claimable(&pool), 0);
     let held = TokenClient::new(&t.e, &t.cetes).balance(&m);
@@ -470,7 +475,7 @@ fn create_fee_seeds_the_vault() {
     StellarAssetClient::new(&t.e, &paid).mint(&creator, &fee);
     let m = make(&t).unwrap().unwrap();
     let c = t.lp.curve(&m);
-    assert_eq!((c.vault, c.div_pending), (fee / 2, fee / 2));
+    assert_eq!((c.vault, c.dividends), (fee / 2, fee / 2));
     assert_eq!(t.lp.pair(&paid).create_fee, fee);
     assert_eq!(TokenClient::new(&t.e, &paid).balance(&creator), 0);
 }

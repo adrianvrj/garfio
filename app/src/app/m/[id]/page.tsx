@@ -312,8 +312,8 @@ export default function CoinPage() {
             <span className="num">{fmt(fromUnits(m.vault), pair.decimals)} {pair.symbol} · {usd(fromUnits(m.vault) * v.pairUsd, 2)}</span>
           </div>
           <div className="between small">
-            <span className="muted">Dividendos por repartir</span>
-            <span className="num">{fmt(fromUnits(m.div_pending), pair.decimals)} {pair.symbol} · {usd(fromUnits(m.div_pending) * v.pairUsd, 2)}</span>
+            <span className="muted">Repartido a holders</span>
+            <span className="num">{fmt(fromUnits(m.dividends), pair.decimals)} {pair.symbol} · {usd(fromUnits(m.dividends) * v.pairUsd, 2)}</span>
           </div>
           <div className="between small">
             <span className="muted">Quemado por recompras</span>

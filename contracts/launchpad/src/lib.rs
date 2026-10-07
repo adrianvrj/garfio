@@ -3,7 +3,8 @@
 //! Each meme picks its pair (tCETES, tUSTRY, tTESOURO…) from an admin allowlist. When the
 //! curve sells out, anyone can migrate its reserve to a Soroswap pool with locked liquidity.
 //! A quarter of every fee goes to the meme's vault. Part of it (`div_bps`) is paid to the meme's
-//! holders as dividends in the pair; the rest buys the meme back and burns it.
+//! holders as dividends in the pair, in the same transaction; the rest buys the meme back and
+//! burns it.
 
 mod amm;
 mod curve;
@@ -40,7 +41,6 @@ pub enum Error {
     // 13 and 14 are left out: the Stellar asset contracts of the pairs raise them, and the app reads both.
     NotMigrated = 15,
     VaultEmpty = 16,
-    NothingToDistribute = 17,
 }
 
 /// Most of a pool's pair reserve one `buyback` spends: small enough that sandwiching it costs
@@ -58,11 +58,16 @@ fn add_protocol_fee(e: &Env, pair: &Address, fee: i128) {
     storage::set_protocol_fees(e, pair, storage::protocol_fees(e, pair) + fee);
 }
 
-/// Splits pair bound for the meme's vault: `div_bps` of it is owed to the holders.
+/// Splits pair bound for the meme's vault: `div_bps` of it goes to the meme's holders at once,
+/// through the token, so nothing waits to be distributed and nobody can time a payout.
 fn add_to_vault(e: &Env, c: &mut Curve, amount: i128) {
     let div = amount * storage::div_bps(e) / 10_000;
-    c.div_pending += div;
     c.vault += amount - div;
+    if div > 0 {
+        TokenClient::new(e, &c.pair).transfer(&e.current_contract_address(), &c.token, &div);
+        MemeClient::new(e, &c.token).notify(&div);
+        c.dividends += div;
+    }
 }
 
 /// (memes out, pair actually charged, fee). Caps the fill at what is left for sale.
@@ -117,7 +122,6 @@ fn fill_buy(e: &Env, buyer: Address, meme: Address, pair_in: i128, min_out: i128
 
     let this = e.current_contract_address();
     TokenClient::new(e, &c.pair).transfer(&buyer, &this, &charged);
-    TokenClient::new(e, &meme).transfer(&this, &buyer, &out);
 
     let net = charged - fee;
     let (fee_c, fee_v, fee_p) = curve::split(fee);
@@ -126,8 +130,10 @@ fn fill_buy(e: &Env, buyer: Address, meme: Address, pair_in: i128, min_out: i128
     c.real_pair += net;
     c.sold += out;
     c.fees_creator += fee_c;
+    // the holders before this buy earn its fee, so the buyer gets their memes after
     add_to_vault(e, &mut c, fee_v);
     add_protocol_fee(e, &c.pair, fee_p);
+    TokenClient::new(e, &meme).transfer(&this, &buyer, &out);
     if c.sold == FOR_SALE {
         c.graduated = true;
     }
@@ -268,7 +274,7 @@ impl Launchpad {
             sold: 0,
             fees_creator: 0,
             vault: 0,
-            div_pending: 0,
+            dividends: 0,
             burned: 0,
             created_at: e.ledger().timestamp(),
             graduated: false,
@@ -467,23 +473,6 @@ impl Launchpad {
         storage::bump_instance(&e);
         events::Buyback { meme, pair_amt: amount, burned: out }.publish(&e);
         out
-    }
-
-    /// Sends the meme's pending dividends to its token, which spreads them over the holders.
-    /// Anyone can call it.
-    pub fn distribute(e: Env, meme: Address) -> i128 {
-        let mut c = load(&e, &meme);
-        let amount = c.div_pending;
-        if amount <= 0 {
-            panic_with_error!(&e, Error::NothingToDistribute);
-        }
-        c.div_pending = 0;
-        storage::set_curve(&e, &meme, &c);
-        storage::bump_instance(&e);
-        TokenClient::new(&e, &c.pair).transfer(&e.current_contract_address(), &meme, &amount);
-        MemeClient::new(&e, &meme).notify(&amount);
-        events::Distribute { meme, pair_amt: amount }.publish(&e);
-        amount
     }
 
     // ---------- views ----------

@@ -14,7 +14,6 @@ const CONTRACT_ERRORS: Record<number, string> = {
   12: "El pool en Soroswap ya está abierto.",
   15: "Esta memecoin todavía no tiene pool en Soroswap.",
   16: "El vault de recompra está vacío.",
-  17: "No hay dividendos por repartir.",
   // From the meme tokens' dividends.
   201: "No tienes dividendos por cobrar.",
   202: "Esa dirección no es un pool de esta memecoin.",

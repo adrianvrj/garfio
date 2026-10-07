@@ -12,12 +12,12 @@ import { useWallet } from "@/lib/wallet/WalletProvider";
 import { TokenArt } from "@/components/Art";
 import { TxLog } from "@/components/TxLink";
 
-/** Every meme the wallet holds, what it can claim from each now, and what is still to distribute. */
+/** Every meme the wallet holds and what it can claim from each now. */
 export default function Dividends() {
   const w = useWallet();
   const memes = useMemes();
   const rows = useDividends(w.address, memes.data ?? []);
-  const { tx, distribute, claim } = useDividendTx();
+  const { tx, claim } = useDividendTx();
   const { usd: bondUsd } = usePrices();
   const [batch, setBatch] = useState<string | null>(null);
 
@@ -28,9 +28,8 @@ export default function Dividends() {
   const list = rows.data ?? [];
   const owed = list.filter((r) => r.owed > 0n);
   const owedUsd = owed.reduce((s, r) => s + toUsd(r.owed, r.m.pair), 0);
-  const pendingUsd = list.reduce((s, r) => s + toUsd(r.pending, r.m.pair), 0);
   // Biggest claim first: the rows are the to-do list.
-  const sorted = [...list].sort((a, b) => toUsd(b.owed, b.m.pair) - toUsd(a.owed, a.m.pair) || toUsd(b.pending, b.m.pair) - toUsd(a.pending, a.m.pair));
+  const sorted = [...list].sort((a, b) => toUsd(b.owed, b.m.pair) - toUsd(a.owed, a.m.pair));
 
   function refresh() {
     memes.refresh();
@@ -55,11 +54,9 @@ export default function Dividends() {
     ? null
     : owed.length
       ? `${usd(owedUsd)} por cobrar en ${owed.length === 1 ? `$${owed[0].m.symbol}` : `${owed.length} memes`}`
-      : pendingUsd > 0
-        ? `${usd(pendingUsd)} tuyos esperan reparto`
-        : list.length
-          ? list.length === 1 ? "Tu meme aún no reparte" : `Tus ${list.length} memes aún no reparten`
-          : null;
+      : list.length
+        ? `Cada compra y venta de ${list.length === 1 ? `$${list[0].m.symbol}` : `tus ${list.length} memes`} te paga en su bono`
+        : null;
 
   return (
     <div className="dividends">
@@ -86,7 +83,7 @@ export default function Dividends() {
         ) : list.length ? (
           <div className="div-list">
             {sorted.map((r) => (
-              <Row key={r.m.id} r={r} usdOf={toUsd} busy={tx.busy || !!batch} onClaim={() => act(claim(r.m, r.owed))} onDistribute={() => act(distribute(r.m))} />
+              <Row key={r.m.id} r={r} usdOf={toUsd} busy={tx.busy || !!batch} onClaim={() => act(claim(r.m, r.owed))} />
             ))}
           </div>
         ) : (
@@ -107,11 +104,6 @@ export default function Dividends() {
           <section className="indicator" aria-label="Por cobrar">
             <div className="rule-head"><h2>Por cobrar</h2></div>
             <b className="indicator-total">{usd(owedUsd)}</b>
-            {pendingUsd > 0 && (
-              <p>
-                Y {usd(pendingUsd)} más cuando alguien reparta.
-              </p>
-            )}
             {owed.length > 1 && (
               <button className="btn primary block lg" onClick={claimAll} disabled={tx.busy || !!batch} style={{ marginTop: 8 }}>
                 {batch ?? `Cobrar los ${owed.length}`}
@@ -124,7 +116,7 @@ export default function Dividends() {
           <div className="fine-print">
             <span>Cada compra y venta en la curva paga 1%; un cuarto va al vault del meme.</span>
             <span>La mitad de lo que entra al vault es de quienes tienen el meme, según cuánto tengan. La otra mitad recompra y quema.</span>
-            <span>Repartir pasa lo acumulado a &ldquo;Te toca&rdquo;. Cualquiera puede hacerlo.</span>
+            <span>Se reparte en la misma compra o venta, según lo que cada quien tenía antes de ella.</span>
             <span>Cobrar te manda el bono a tu wallet, y sigue rindiendo ahí.</span>
           </div>
         </section>
@@ -138,15 +130,13 @@ function Row({
   usdOf,
   busy,
   onClaim,
-  onDistribute,
 }: {
   r: Dividend;
   usdOf: (amount: bigint, pair: string) => number;
   busy: boolean;
   onClaim: () => void;
-  onDistribute: () => void;
 }) {
-  const { m, bal, owed, pending } = r;
+  const { m, bal, owed } = r;
   const p = pairById(m.pair);
   const bond = (v: bigint) => `${fmt(fromUnits(v), p?.decimals ?? 2)} ${p?.symbol ?? ""}`;
   return (
@@ -166,22 +156,12 @@ function Row({
             <b className="num">{bond(owed)}</b>
             <span className="muted small num">{usd(usdOf(owed, m.pair))}</span>
           </>
-        ) : pending > 0n ? (
-          <>
-            <b className="num muted">{bond(pending)}</b>
-            <span className="muted small">al repartir</span>
-          </>
         ) : (
           <span className="muted small">Nada por ahora</span>
         )}
-        {owed > 0n && pending > 0n && <span className="muted small num">+{bond(pending)} al repartir</span>}
       </div>
       <div className="div-action">
-        {owed > 0n ? (
-          <button className="btn primary" onClick={onClaim} disabled={busy}>Cobrar</button>
-        ) : pending > 0n ? (
-          <button className="btn" onClick={onDistribute} disabled={busy}>Repartir</button>
-        ) : null}
+        {owed > 0n && <button className="btn primary" onClick={onClaim} disabled={busy}>Cobrar</button>}
       </div>
     </div>
   );

@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Builds the contracts, deploys a new launchpad wired to Soroswap and allows Etherfuse's bonds.
-# Usage: [NET=mainnet] [PAIRS="CETES TESOURO USTRY"] [DIV_BPS=5000] ./scripts/deploy.sh
+# Usage: [NET=mainnet] [PAIRS="CETES TESOURO"] [DIV_BPS=5000] ./scripts/deploy.sh
+# USTRY does not work on testnet, so only mainnet allows it by default.
 # DIV_BPS: basis points of every vault inflow paid to the meme's holders as dividends.
 source "$(dirname "$0")/lib.sh"
 
@@ -12,7 +13,9 @@ case "$NET" in
 esac
 AMM_FACTORY="${AMM_FACTORY:-$DEFAULT_FACTORY}"
 AMM_ROUTER="${AMM_ROUTER:-$DEFAULT_ROUTER}"
-PAIRS="${PAIRS:-CETES TESOURO USTRY}"
+DEFAULT_PAIRS="CETES TESOURO"
+[ "$NET" = mainnet ] && DEFAULT_PAIRS="CETES TESOURO USTRY"
+PAIRS="${PAIRS:-$DEFAULT_PAIRS}"
 DIV_BPS="${DIV_BPS:-5000}"
 
 ensure_key "$ADMIN"

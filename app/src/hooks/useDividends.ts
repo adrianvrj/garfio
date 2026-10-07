@@ -1,6 +1,6 @@
 "use client";
 
-import { balanceOf, calls, fetchClaimable, fetchTotalShares, hasTrustline, type Meme } from "@/lib/chain";
+import { balanceOf, calls, fetchClaimable, hasTrustline, type Meme } from "@/lib/chain";
 import { pairById } from "@/lib/config";
 import { fmt, fromUnits } from "@/lib/units";
 import { useWallet } from "@/lib/wallet/WalletProvider";
@@ -9,12 +9,10 @@ import { useTx } from "./useTx";
 
 export interface Dividend {
   m: Meme;
-  /** Memes the holder has now: their share. */
+  /** Memes the holder has now: their share of every trade's dividend from here on. */
   bal: bigint;
   /** Bond the holder can claim now. */
   owed: bigint;
-  /** Their part of what the launchpad holds for the meme's holders and has not distributed yet. */
-  pending: bigint;
 }
 
 /** `address`'s dividends in each meme they hold or have something to claim from. */
@@ -24,29 +22,23 @@ export function useDividends(address: string | null, memes: Meme[]) {
       ? async () => {
           const rows = await Promise.all(
             memes.map(async (m): Promise<Dividend | null> => {
-              const [bal, owed, shares] = await Promise.all([
-                balanceOf(m.id, address),
-                fetchClaimable(m.id, address),
-                m.div_pending > 0n ? fetchTotalShares(m.id) : 0n,
-              ]);
-              const pending = shares > 0n ? (m.div_pending * bal) / shares : 0n;
-              return bal > 0n || owed > 0n ? { m, bal, owed, pending } : null;
+              const [bal, owed] = await Promise.all([balanceOf(m.id, address), fetchClaimable(m.id, address)]);
+              return bal > 0n || owed > 0n ? { m, bal, owed } : null;
             }),
           );
           return rows.filter((r) => r !== null);
         }
       : null,
     15_000,
-    `${address}|${memes.map((m) => `${m.id}:${m.div_pending}`).join(",")}`,
+    // every trade pays out, so a meme's running total is enough to know when to reload
+    `${address}|${memes.map((m) => `${m.id}:${m.dividends}`).join(",")}`,
   );
 }
 
-/** Distributes a meme's dividends and claims them, opening the bond's trustline first if needed. */
+/** Claims a meme's dividends, opening the bond's trustline first if the wallet lacks it. */
 export function useDividendTx() {
   const w = useWallet();
   const tx = useTx();
-
-  const distribute = (m: Meme) => tx.send(calls.distribute(m.id), `repartiste dividendos de $${m.symbol}`);
 
   async function claim(m: Meme, owed: bigint) {
     const pair = pairById(m.pair);
@@ -64,5 +56,5 @@ export function useDividendTx() {
     return tx.send(calls.claim(m.id, holder), `cobraste ${amount} ${pair.symbol} de $${m.symbol}`);
   }
 
-  return { tx, distribute, claim };
+  return { tx, claim };
 }

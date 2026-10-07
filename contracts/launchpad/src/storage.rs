@@ -44,11 +44,11 @@ pub struct Curve {
     pub sold: i128,
     pub fees_creator: i128,
     /// Pair set aside for the meme's holders: a quarter of each fee, the create fee and the
-    /// reserve the pool did not need, less the `div_bps` share that goes to `div_pending`.
+    /// reserve the pool did not need, less the `div_bps` share paid to the holders.
     /// Once migrated, `buyback` spends it on memes and burns them.
     pub vault: i128,
-    /// Pair owed to the meme's holders as dividends; `distribute` sends it to the token.
-    pub div_pending: i128,
+    /// Pair paid to the meme's holders as dividends so far, through the token.
+    pub dividends: i128,
     /// Memes burned by migration leftovers and buybacks.
     pub burned: i128,
     pub created_at: u64,

@@ -65,11 +65,3 @@ pub struct Buyback {
     pub pair_amt: i128,
     pub burned: i128,
 }
-
-#[contractevent(topics = ["distribute"])]
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct Distribute {
-    #[topic]
-    pub meme: Address,
-    pub pair_amt: i128,
-}
