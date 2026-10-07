@@ -10,6 +10,7 @@ import { useProfile } from "@/lib/profile";
 import { usePresence } from "@/hooks/usePresence";
 import { useSwipeSheet } from "@/hooks/useSwipeSheet";
 import { explain } from "@/lib/errors";
+import { useT } from "@/i18n/client";
 import { short } from "@/lib/units";
 import { UserAvatar } from "./Art";
 import { Logo } from "./Logo";
@@ -20,6 +21,8 @@ export function Header() {
   const router = useRouter();
   const params = useSearchParams();
   const w = useWallet();
+  const t = useT();
+  const th = t.header;
   const profile = useProfile(w.address);
   const [login, setLogin] = useState(false);
   // The address the drawer opened for: if the wallet blinks while Cavos settles, the drawer
@@ -92,18 +95,18 @@ export function Header() {
             key={params.get("q") ?? ""}
             name="q"
             className="input"
-            placeholder="Busca un meme o ticker"
+            placeholder={th.search}
             defaultValue={params.get("q") ?? ""}
-            aria-label="Buscar"
+            aria-label={th.searchLabel}
             onKeyDown={(e) => e.key === "Escape" && setSearching(false)}
           />
-          <button type="button" className="search-cancel" onClick={() => setSearching(false)}>Cancelar</button>
+          <button type="button" className="search-cancel" onClick={() => setSearching(false)}>{th.cancel}</button>
         </form>
 
         <div className="header-actions">
           <button
             className="search-open"
-            aria-label="Buscar"
+            aria-label={th.searchLabel}
             onClick={() => {
               // Rendered and focused inside the tap, or iOS won't raise the keyboard.
               flushSync(() => setSearching(true));
@@ -116,17 +119,17 @@ export function Header() {
             </svg>
           </button>
           {w.address && !IS_MAINNET && (
-            <button className="btn hide-sm" onClick={() => openDeposit()}>Depositar</button>
+            <button className="btn hide-sm" onClick={() => openDeposit()}>{t.common.deposit}</button>
           )}
-          {w.address && <Link href="/dividends" className="btn hide-sm">Dividendos</Link>}
-          <Link href="/create" className="btn primary">Crear<span className="hide-sm">&nbsp;moneda</span></Link>
+          {w.address && <Link href="/dividends" className="btn hide-sm">{th.dividends}</Link>}
+          <Link href="/create" className="btn primary">{th.create}<span className="hide-sm">{th.createMore.replace(" ", "\u00a0")}</span></Link>
           {w.address ? (
-            <button className="wallet-chip" onClick={() => setDrawer(w.address)} aria-label="Abrir perfil">
+            <button className="wallet-chip" onClick={() => setDrawer(w.address)} aria-label={th.openProfile}>
               <UserAvatar address={w.address} image={profile.image} size={28} />
               <span className="hide-sm">{profile.name || short(w.address)}</span>
             </button>
           ) : (
-            <button className="btn" ref={trigger} onClick={() => setLogin(true)}>Entrar</button>
+            <button className="btn" ref={trigger} onClick={() => setLogin(true)}>{th.login}</button>
           )}
         </div>
       </div>
@@ -140,10 +143,10 @@ export function Header() {
           <div className="modal" role="dialog" aria-modal="true" aria-labelledby="login-title" ref={anchor} onClick={(e) => e.stopPropagation()}>
             <div className="between">
               <span className="stack" style={{ gap: 4 }}>
-                <span className="kicker">Gratis, sin papel</span>
-                <h3 id="login-title">Suscríbete</h3>
+                <span className="kicker">{th.loginKicker}</span>
+                <h3 id="login-title">{th.loginTitle}</h3>
               </span>
-              <button className="btn ghost sm" onClick={() => setLogin(false)} aria-label="Cerrar">✕</button>
+              <button className="btn ghost sm" onClick={() => setLogin(false)} aria-label={t.common.close}>✕</button>
             </div>
             <div className="options">
               {w.cavosEnabled && (
@@ -156,8 +159,8 @@ export function Header() {
                   }}
                 >
                   <span>
-                    <b>Email o Google</b>
-                    <span className="muted small">Sin extensión ni XLM. Cavos paga los fees.</span>
+                    <b>{th.cavos}</b>
+                    <span className="muted small">{th.cavosNote}</span>
                   </span>
                   <span aria-hidden="true">→</span>
                 </button>
@@ -171,18 +174,18 @@ export function Header() {
                     await w.connectFreighter();
                     setLogin(false);
                   } catch (e) {
-                    setErr(explain(e));
+                    setErr(explain(e, t));
                   }
                 }}
               >
                 <span>
-                  <b>Wallet de Stellar</b>
-                  <span className="muted small">Freighter, xBull, Lobstr y otras.</span>
+                  <b>{th.stellar}</b>
+                  <span className="muted small">{th.stellarNote}</span>
                 </span>
                 <span aria-hidden="true">→</span>
               </button>
             </div>
-            <p className="muted small">The Hooks Daily circula en testnet: nada de esto es dinero real.</p>
+            <p className="muted small">{th.testnet}</p>
             {err && <div className="err">{err}</div>}
           </div>
         </div>,

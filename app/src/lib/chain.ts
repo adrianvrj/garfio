@@ -4,6 +4,7 @@ import { Client as LaunchpadClient, type Curve, type PairCfg, type Position } fr
 import { Client as RouterClient } from "@/contracts/router";
 import { Client as TokenClient } from "@/contracts/token";
 import { AMM_ROUTER, HORIZON_URL, LAUNCHPAD_ID, NETWORK_PASSPHRASE, PAIRS, RPC_URL } from "./config";
+import { Oops } from "./errors";
 
 export const server = new rpc.Server(RPC_URL);
 
@@ -163,10 +164,10 @@ export async function txReturn<T>(hash: string): Promise<T> {
     if (res.status === rpc.Api.GetTransactionStatus.SUCCESS) {
       return (res.returnValue ? scValToNative(res.returnValue) : undefined) as T;
     }
-    if (res.status === rpc.Api.GetTransactionStatus.FAILED) throw new Error("La transacción falló on-chain.");
+    if (res.status === rpc.Api.GetTransactionStatus.FAILED) throw new Oops("txFailed");
     await new Promise((r) => setTimeout(r, 1000));
   }
-  throw new Error("La transacción no se confirmó a tiempo.");
+  throw new Oops("txTimeout");
 }
 
 // ---------- events → chart ----------
@@ -216,7 +217,7 @@ async function read<T>(contractId: string, method: string, ...args: xdr.ScVal[])
     .setTimeout(30)
     .build();
   const sim = await server.simulateTransaction(tx);
-  if (rpc.Api.isSimulationError(sim) || !sim.result) throw new Error(`${method} falló`);
+  if (rpc.Api.isSimulationError(sim) || !sim.result) throw new Error(`${method}: simulation failed`);
   return scValToNative(sim.result.retval) as T;
 }
 

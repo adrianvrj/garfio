@@ -5,6 +5,8 @@ import { Providers } from "./providers";
 import { Header } from "@/components/Header";
 import { ActivityStrip } from "@/components/ActivityStrip";
 import { Footer, MainnetBanner } from "@/components/Footer";
+import { TAGS } from "@/i18n/locales";
+import { getDict, getLocale } from "@/i18n/server";
 import "./globals.css";
 
 // The paper's three voices: Anton shouts the headlines, Newsreader tells the story,
@@ -13,23 +15,28 @@ const anton = Anton({ weight: "400", subsets: ["latin", "latin-ext"], variable: 
 const newsreader = Newsreader({ style: ["normal", "italic"], subsets: ["latin", "latin-ext"], axes: ["opsz"], variable: "--font-newsreader" });
 const franklin = Libre_Franklin({ subsets: ["latin", "latin-ext"], variable: "--font-franklin" });
 
-export const metadata: Metadata = {
-  // Absolute URLs for the share cards; set NEXT_PUBLIC_SITE_URL to the deployed origin.
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"),
-  title: "The Hooks Daily · Memecoins respaldadas por bonos",
-  description: "Launchpad en Stellar donde cada memecoin guarda su reserva en un activo real tokenizado.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getDict();
+  return {
+    // Absolute URLs for the share cards; set NEXT_PUBLIC_SITE_URL to the deployed origin.
+    metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"),
+    title: t.meta.title,
+    description: t.meta.description,
+  };
+}
 
 /** The phone's browser chrome takes the paper's color. */
 export const viewport: Viewport = {
   themeColor: "#f2ede4",
 };
 
-export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+// No picker: the paper prints in the device's language (Accept-Language), English when it doesn't speak it.
+export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+  const locale = await getLocale();
   return (
-    <html lang="es" className={`${anton.variable} ${newsreader.variable} ${franklin.variable}`}>
+    <html lang={TAGS[locale]} className={`${anton.variable} ${newsreader.variable} ${franklin.variable}`}>
       <body>
-        <Providers>
+        <Providers locale={locale}>
           <MainnetBanner />
           <Suspense>
             <Header />

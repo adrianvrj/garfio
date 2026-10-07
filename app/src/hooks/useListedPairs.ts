@@ -5,7 +5,7 @@ import { PAIRS, type PairInfo } from "@/lib/config";
 
 async function fetchListed(): Promise<string[]> {
   const res = await fetch("/api/faucet");
-  if (!res.ok) throw new Error("Sin lista de bonos");
+  if (!res.ok) throw new Error("No bond list");
   return (await res.json()).symbols;
 }
 

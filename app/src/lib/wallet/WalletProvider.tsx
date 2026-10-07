@@ -1,10 +1,11 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from "react";
+import { createContext, startTransition, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { CavosProvider, useCavos } from "@cavos/kit/react";
 import { CAVOS_APP_ID, CAVOS_ENV, NETWORK } from "../config";
 import type { Call } from "../chain";
+import { Oops } from "../errors";
 import * as freighter from "./freighter";
 
 export type WalletKind = "cavos" | "freighter";
@@ -58,8 +59,8 @@ function CavosBridge({
       // A trade right after a reload can land before Cavos has restored the session; give it time.
       for (let i = 0; i < 75 && !current.current; i++) await new Promise((r) => setTimeout(r, 200));
       const wallet = current.current;
-      if (!wallet || wallet.chain !== "stellar") throw new Error("Wallet de Cavos no conectada.");
-      if (wallet.status === "needs-device-approval") throw new Error("Aprueba este dispositivo en Cavos.");
+      if (!wallet || wallet.chain !== "stellar") throw new Oops("cavosNotConnected");
+      if (wallet.status === "needs-device-approval") throw new Oops("cavosApprove");
       // The first execute creates the account (sponsored).
       if (wallet.status === "undeployed") await wallet.execute(1n, wallet.address).catch(() => {});
       return wallet;
@@ -114,8 +115,9 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     try {
       const last = localStorage.getItem(CAVOS_ADDR_KEY);
-      // After hydration, so the server and the first client render agree.
-      if (last) queueMicrotask(() => setCavosAddr((a) => a ?? last));
+      // A transition, so React finishes hydrating the boundaries still streaming in (the header's
+      // Suspense) with the server's no-address render before showing the wallet.
+      if (last) startTransition(() => setCavosAddr((a) => a ?? last));
     } catch {}
   }, []);
 
@@ -220,12 +222,12 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       invoke: (call) => {
         if (kind === "freighter" && freighterAddr) return freighter.invoke(freighterAddr, call);
         if (kind === "cavos" && cavos.current) return cavos.current.invoke(call);
-        return Promise.reject(new Error("Conecta una wallet primero."));
+        return Promise.reject(new Oops("notConnected"));
       },
       addTrustline: (asset) => {
         if (kind === "freighter" && freighterAddr) return freighter.addTrustline(freighterAddr, asset);
         if (kind === "cavos" && cavos.current) return cavos.current.addTrustline(asset);
-        return Promise.reject(new Error("Conecta una wallet primero."));
+        return Promise.reject(new Oops("notConnected"));
       },
     }),
     [address, kind, freighterAddr, connectCavos, connectFreighter, disconnect],

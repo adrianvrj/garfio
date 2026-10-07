@@ -5,6 +5,7 @@ import { addr, balanceOf, i128, server } from "@/lib/chain";
 import { faucetAmount, IS_MAINNET, NETWORK_PASSPHRASE, PAIRS } from "@/lib/config";
 import { allow, clientIp } from "@/lib/rateLimit";
 import { toUnits } from "@/lib/units";
+import { DICTS, negotiate } from "@/i18n/locales";
 
 /** Deposits one IP can ask for per hour: a few bonds and a retry, not a bot draining the treasury. */
 const PER_IP_HOURLY = 6;
@@ -27,17 +28,19 @@ export async function GET() {
 
 export async function POST(req: Request) {
   const secret = process.env.FAUCET_SECRET;
-  if (IS_MAINNET) return fail(404, "En mainnet no hay faucet.");
-  if (!secret) return fail(503, "El faucet no está configurado.");
+  // Answers in the asker's language: the deposit dialog shows these as they come.
+  const t = DICTS[negotiate(req.headers.get("accept-language"))].faucet;
+  if (IS_MAINNET) return fail(404, t.noFaucet);
+  if (!secret) return fail(503, t.notConfigured);
   if (!allow(`faucet:${clientIp(req)}`, PER_IP_HOURLY, HOUR)) {
-    return fail(429, "Ya pediste varios depósitos esta hora. Vuelve a intentar más tarde.");
+    return fail(429, t.tooMany);
   }
   const { address, pair: symbol } = await req.json().catch(() => ({}));
   const pair = PAIRS.find((p) => p.symbol === symbol);
-  if (!pair) return fail(400, "Ese bono no está en el faucet.");
+  if (!pair) return fail(400, t.unknownBond);
   const amount = toUnits(String(faucetAmount(pair)));
   if (typeof address !== "string" || !(StrKey.isValidEd25519PublicKey(address) || StrKey.isValidContract(address))) {
-    return fail(400, "Dirección inválida.");
+    return fail(400, t.badAddress);
   }
 
   // Reading the balance also proves the account can receive the asset (it has the trustline).
@@ -45,9 +48,9 @@ export async function POST(req: Request) {
   try {
     held = await balanceOf(pair.id, address);
   } catch {
-    return fail(409, `Tu cuenta todavía no acepta ${pair.symbol}.`);
+    return fail(409, t.noTrustline(pair.symbol));
   }
-  if (held >= amount) return fail(429, `Ya tienes ${pair.symbol} suficientes para probar.`);
+  if (held >= amount) return fail(429, t.enough(pair.symbol));
 
   const treasury = Keypair.fromSecret(secret);
   const tx = new TransactionBuilder(await server.getAccount(treasury.publicKey()), {
@@ -62,11 +65,11 @@ export async function POST(req: Request) {
     const prepared = await server.prepareTransaction(tx);
     prepared.sign(treasury);
     const sent = await server.sendTransaction(prepared);
-    if (sent.status === "ERROR") return fail(502, "La red rechazó el envío. Intenta de nuevo.");
+    if (sent.status === "ERROR") return fail(502, t.rejected);
     const done = await server.pollTransaction(sent.hash, { attempts: 20 });
-    if (done.status !== rpc.Api.GetTransactionStatus.SUCCESS) return fail(502, "El envío falló on-chain.");
+    if (done.status !== rpc.Api.GetTransactionStatus.SUCCESS) return fail(502, t.failed);
     return Response.json({ hash: sent.hash });
   } catch {
-    return fail(503, `El faucet se quedó sin ${pair.symbol} o no responde.`);
+    return fail(503, t.dry(pair.symbol));
   }
 }

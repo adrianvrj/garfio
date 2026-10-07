@@ -20,6 +20,7 @@ import { DividendPanel } from "@/components/DividendPanel";
 import { Progress } from "@/components/Progress";
 import { FavoriteButton } from "@/components/TokenCard";
 import { YieldBadge } from "@/components/YieldBadge";
+import { useLocaleTag, useT } from "@/i18n/client";
 
 /**
  * Phones stack the trade coupon under the chart: this bar keeps the trade one tap away while the
@@ -27,6 +28,7 @@ import { YieldBadge } from "@/components/YieldBadge";
  */
 function TradeDock({ symbol, price, change }: { symbol: string; price: string; change?: number }) {
   const dock = useRef<HTMLDivElement>(null);
+  const t = useT();
   useEffect(() => {
     const coupon = document.getElementById("trade");
     if (!coupon || !dock.current) return;
@@ -50,7 +52,7 @@ function TradeDock({ symbol, price, change }: { symbol: string; price: string; c
           document.getElementById("trade")?.scrollIntoView({ block: "center", behavior: smooth ? "smooth" : "auto" });
         }}
       >
-        Comprar · vender
+        {t.coin.dockTrade}
       </button>
     </div>
   );
@@ -71,6 +73,8 @@ export default function CoinPage() {
   const [tab, setTab] = useState<"trades" | "holders">("trades");
   const [copied, setCopied] = useState(false);
   const [now] = useState(() => Date.now());
+  const t = useT();
+  const tag = useLocaleTag();
 
   const m = meme.data;
   const v = m ? value(m) : null;
@@ -105,7 +109,7 @@ export default function CoinPage() {
     list.dataset.ink = "";
   });
 
-  if (meme.error) return <div className="empty" style={{ marginTop: 24 }}>No encontré esta meme: {meme.error}</div>;
+  if (meme.error) return <div className="empty" style={{ marginTop: 24 }}>{t.coin.notFound(meme.error)}</div>;
   if (!m || !v || !pair) {
     return (
       <div className="coin">
@@ -133,14 +137,15 @@ export default function CoinPage() {
     since: accrued(trades.data ?? [], reserve, now, bond.nav, bond.rateBps),
   };
 
-  const date = new Date(now).toLocaleDateString("es-MX", { weekday: "long", day: "numeric", month: "long" });
+  const label = t.pairLabel[pair.symbol] ?? t.pairLabel.other;
+  const date = new Date(now).toLocaleDateString(tag, { weekday: "long", day: "numeric", month: "long" });
   return (
     <>
     <div className="folio">
       <b>The Hooks Daily</b>
       <span>{date}</span>
-      <span>Mercados · {pair.symbol}</span>
-      <span>Pág. ${m.symbol}</span>
+      <span>{t.coin.markets(pair.symbol)}</span>
+      <span>{t.home.page(m.symbol)}</span>
     </div>
     <div className="coin">
       <div className="coin-main">
@@ -148,14 +153,14 @@ export default function CoinPage() {
           <TokenArt seed={artSeed(m)} size={140} />
           <div className="stack" style={{ gap: 8, minWidth: 0 }}>
             <span className="kicker">
-              {m.pool ? "Graduada · Soroswap" : `Curva al ${fmt(g, 1)}%`} · Respaldo {pair.symbol}
+              {t.coin.kicker({ pool: Boolean(m.pool), progress: fmt(g, 1), sym: pair.symbol })}
             </span>
             <h1>${m.symbol}</h1>
-            <p className="deck">{m.name}, respaldada por {pair.label}.</p>
+            <p className="deck">{t.coin.deck(m.name, label)}</p>
             <div className="byline">
-              Por <Identity address={m.creator} size={16} />
-              {dev.data !== null && <span>· el dev tiene {fmt((fromUnits(dev.data) / SUPPLY) * 100, 2)}% del supply</span>}
-              <span>· {ago(Number(m.created_at) * 1000, now)}</span>
+              {t.common.by} <Identity address={m.creator} size={16} />
+              {dev.data !== null && <span>{t.coin.devHolds(fmt((fromUnits(dev.data) / SUPPLY) * 100, 2))}</span>}
+              <span>· {ago(t, Number(m.created_at) * 1000, now)}</span>
               <YieldBadge pair={pair} />
               <button
                 className="copy"
@@ -164,21 +169,21 @@ export default function CoinPage() {
                   setCopied(true);
                   setTimeout(() => setCopied(false), 1200);
                 }}
-                title="Copiar dirección del token"
+                title={t.coin.copyTitle}
               >
-                {copied ? "copiado ✓" : `${m.id.slice(0, 4)}…${m.id.slice(-4)}`}
+                {copied ? t.coin.copied : `${m.id.slice(0, 4)}…${m.id.slice(-4)}`}
               </button>
-              <a className="copy" href={contractUrl(m.id)} target="_blank" rel="noopener">explorer ↗</a>
+              <a className="copy" href={contractUrl(m.id)} target="_blank" rel="noopener">{t.coin.explorer}</a>
               <button
                 className="copy"
                 onClick={() => {
                   const url = `${location.origin}/m/${m.id}`;
-                  const text = `$${m.symbol} en Hooks: su reserva es ${pair.symbol}, ${pair.label}.`;
+                  const text = t.coin.shareText(m.symbol, pair.symbol, label);
                   if (navigator.share) return void navigator.share({ title: `$${m.symbol}`, text, url }).catch(() => {});
                   window.open(`https://x.com/intent/post?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`, "_blank", "noopener");
                 }}
               >
-                compartir ↗
+                {t.coin.share}
               </button>
               <FavoriteButton id={m.id} />
             </div>
@@ -186,15 +191,15 @@ export default function CoinPage() {
         </div>
 
         <div className="coin-stats">
-          <div><span className="k">Market cap</span><span className="v">{usd(priceUsd * SUPPLY, 0)}</span></div>
+          <div><span className="k">{t.common.marketCap}</span><span className="v">{usd(priceUsd * SUPPLY, 0)}</span></div>
           <div>
-            <span className="k">Precio</span>
+            <span className="k">{t.coin.price}</span>
             <span className="v">
               ${tiny(priceUsd)} {day && <span className={day.change >= 0 ? "buy" : "sell"}>{pct(day.change)}</span>}
             </span>
           </div>
-          <div><span className="k">Reserva</span><span className="v">{usd(reserveUsd, 0)}</span></div>
-          <div><span className="k">Vol 24 h</span><span className="v">{!trades.data ? "…" : day ? usd(day.volumeUsd, 0) : "–"}</span></div>
+          <div><span className="k">{t.coin.reserve}</span><span className="v">{usd(reserveUsd, 0)}</span></div>
+          <div><span className="k">{t.coin.volume}</span><span className="v">{!trades.data ? "…" : day ? usd(day.volumeUsd, 0) : "–"}</span></div>
         </div>
 
         <PriceChart ticks={ticks} open={openingPrice(pair.vPair0) * v.pairUsd * SUPPLY} />
@@ -203,9 +208,9 @@ export default function CoinPage() {
       {/* On a phone the trade panel sits right under the chart, before the activity tables. */}
       <div className="coin-activity">
         <div className="tabs" role="tablist" ref={tablist}>
-          <button role="tab" aria-selected={tab === "trades"} onClick={() => setTab("trades")}>Trades</button>
+          <button role="tab" aria-selected={tab === "trades"} onClick={() => setTab("trades")}>{t.coin.trades}</button>
           <button role="tab" aria-selected={tab === "holders"} onClick={() => setTab("holders")}>
-            Holders {holders.data && <span className="muted">({holders.data.length})</span>}
+            {t.coin.holders} {holders.data && <span className="muted">({holders.data.length})</span>}
           </button>
         </div>
 
@@ -215,31 +220,31 @@ export default function CoinPage() {
               <table className="table">
                 <thead>
                   <tr>
-                    <th>Cuenta</th>
-                    <th>Tipo</th>
+                    <th>{t.coin.colAccount}</th>
+                    <th>{t.coin.colType}</th>
                     <th className="r">{pair.symbol}</th>
                     <th className="r">${m.symbol}</th>
-                    <th className="r hide-sm">Cuándo</th>
-                    <th className="r">Tx</th>
+                    <th className="r hide-sm">{t.coin.colWhen}</th>
+                    <th className="r">{t.coin.colTx}</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {recent.map((t) => (
-                    <tr key={t.id}>
+                  {recent.map((trade) => (
+                    <tr key={trade.id}>
                       <td>
                         <span className="row">
-                          <Identity address={t.trader} />
-                          {t.trader === m.creator && <span className="badge">dev</span>}
-                          {t.trader === w.address && <span className="badge">tú</span>}
-                          {t.trader === LAUNCHPAD_ID && <span className="badge">recompra</span>}
-                          {t.pool && t.trader !== LAUNCHPAD_ID && <span className="badge">soroswap</span>}
+                          <Identity address={trade.trader} />
+                          {trade.trader === m.creator && <span className="badge">dev</span>}
+                          {trade.trader === w.address && <span className="badge">{t.common.you}</span>}
+                          {trade.trader === LAUNCHPAD_ID && <span className="badge">{t.coin.badgeBuyback}</span>}
+                          {trade.pool && trade.trader !== LAUNCHPAD_ID && <span className="badge">soroswap</span>}
                         </span>
                       </td>
-                      <td className={t.isBuy ? "buy" : "sell"}>{t.isBuy ? "▲ compra" : "▼ venta"}</td>
-                      <td className="r num">{fmt(fromUnits(t.pairAmt), pair.decimals)}</td>
-                      <td className="r num">{compact(fromUnits(t.memeAmt))}</td>
-                      <td className="r muted hide-sm">{ago(t.at, now)}</td>
-                      <td className="r"><a className="copy" href={txUrl(t.txHash)} target="_blank" rel="noopener">↗</a></td>
+                      <td className={trade.isBuy ? "buy" : "sell"}>{trade.isBuy ? t.coin.buy : t.coin.sell}</td>
+                      <td className="r num">{fmt(fromUnits(trade.pairAmt), pair.decimals)}</td>
+                      <td className="r num">{compact(fromUnits(trade.memeAmt))}</td>
+                      <td className="r muted hide-sm">{ago(t, trade.at, now)}</td>
+                      <td className="r"><a className="copy" href={txUrl(trade.txHash)} target="_blank" rel="noopener">↗</a></td>
                     </tr>
                   ))}
                 </tbody>
@@ -247,19 +252,19 @@ export default function CoinPage() {
             </div>
           ) : (
             <p className="muted" style={{ padding: "16px 0" }}>
-              {trades.error ? `No pude leer los trades: ${trades.error}` : trades.data ? "Sin trades en los últimos 7 días. Sé el primero." : "Leyendo trades…"}
+              {trades.error ? t.coin.tradesFailed(trades.error) : trades.data ? t.coin.noTrades : t.coin.loadingTrades}
             </p>
           )
         ) : (
           <div className="table-wrap">
             <table className="table">
               <thead>
-                <tr><th>#</th><th>Cuenta</th><th className="r">% del supply</th><th className="r">${m.symbol}</th></tr>
+                <tr><th>#</th><th>{t.coin.colAccount}</th><th className="r">{t.coin.colShare}</th><th className="r">${m.symbol}</th></tr>
               </thead>
               <tbody>
                 <tr>
                   <td className="muted">–</td>
-                  <td><span className="muted">{m.pool ? "Pool en Soroswap" : "Curva (sin vender)"}</span></td>
+                  <td><span className="muted">{m.pool ? t.coin.pool : t.coin.curveUnsold}</span></td>
                   <td className="r num">{fmt((unsold / SUPPLY) * 100, 1)}%</td>
                   <td className="r num">{compact(unsold)}</td>
                 </tr>
@@ -273,7 +278,7 @@ export default function CoinPage() {
                 ))}
               </tbody>
             </table>
-            <p className="small muted" style={{ paddingTop: 8 }}>Cuenta las wallets que compraron o vendieron en la curva.</p>
+            <p className="small muted" style={{ paddingTop: 8 }}>{t.coin.holdersNote}</p>
           </div>
         )}
       </div>
@@ -304,24 +309,24 @@ export default function CoinPage() {
 
         <div className="panel stack">
           <div className="between">
-            <h3>Curva de bonding</h3>
-            <span className="num">{m.graduated ? "graduada" : `${fmt(g, 1)}%`}</span>
+            <h3>{t.coin.bonding}</h3>
+            <span className="num">{m.graduated ? t.coin.graduated : `${fmt(g, 1)}%`}</span>
           </div>
-          <Progress value={g} label="Curva vendida" />
+          <Progress value={g} label={t.coin.curveSold} />
           <p className="small ink2">
             {m.graduated
-              ? "La curva vendió sus 800M y la liquidez pasó a Soroswap."
-              : `Faltan ~${fmt(toGrad, pair.decimals)} ${pair.symbol} para graduar. Quedan ${compact(FOR_SALE - fromUnits(m.sold))} de 800M a la venta.`}
+              ? t.coin.soldOut
+              : t.coin.toGraduate(fmt(toGrad, pair.decimals), pair.symbol, compact(FOR_SALE - fromUnits(m.sold)))}
           </p>
         </div>
 
         <div className="panel stack">
           <div className="between">
-            <h3>Respaldo: {pair.name}</h3>
+            <h3>{t.coin.backing(pair.name)}</h3>
             <span className="badge">{pair.symbol}</span>
           </div>
           <div className="between small">
-            <span className="muted">{m.pool ? "En el pool" : "En reserva"}</span>
+            <span className="muted">{m.pool ? t.coin.inPool : t.coin.inReserve}</span>
             <span className="num">{fmt(fromUnits(reserve), pair.decimals)} {pair.symbol} · {usd(reserveUsd, 0)}</span>
           </div>
           <div className="between small">
@@ -329,29 +334,28 @@ export default function CoinPage() {
             <span className="num">{usd(v.pairUsd, 4)}</span>
           </div>
           <p className="small ink2">
-            La reserva es {pair.label} y rinde {fmt(prices.yieldPct(pair.symbol) ?? 0, 2)}% anual en {pair.currency}: su
-            valor sube aunque nadie opere.
+            {t.coin.reserveNote(label, fmt(prices.yieldPct(pair.symbol) ?? 0, 2), pair.currency)}
           </p>
           <div className="split two">
             <div>
-              <span className="k">Rinde hoy</span>
+              <span className="k">{t.coin.yieldsToday}</span>
               <span className="v">{earning ? `${fmt(earning.daily, 2)} ${pair.currency}` : "…"}</span>
             </div>
             <div>
-              <span className="k">Ha rendido</span>
+              <span className="k">{t.coin.yielded}</span>
               <span className="v">{earning && trades.data ? `${fmt(earning.since, 2)} ${pair.currency}` : "…"}</span>
             </div>
           </div>
           <div className="between small">
-            <span className="muted">Vault de recompra</span>
+            <span className="muted">{t.coin.vault}</span>
             <span className="num">{fmt(fromUnits(m.vault), pair.decimals)} {pair.symbol} · {usd(fromUnits(m.vault) * v.pairUsd, 2)}</span>
           </div>
           <div className="between small">
-            <span className="muted">Repartido a holders</span>
+            <span className="muted">{t.coin.paidHolders}</span>
             <span className="num">{fmt(fromUnits(m.dividends), pair.decimals)} {pair.symbol} · {usd(fromUnits(m.dividends) * v.pairUsd, 2)}</span>
           </div>
           <div className="between small">
-            <span className="muted">Quemado por recompras</span>
+            <span className="muted">{t.coin.burned}</span>
             <span className="num">{compact(fromUnits(m.burned))} ${m.symbol}</span>
           </div>
         </div>

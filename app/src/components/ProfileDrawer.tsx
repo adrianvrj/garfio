@@ -13,6 +13,7 @@ import { createSpring, prefersReducedMotion, project, rubberband, type Spring } 
 import { useListedPairs } from "@/hooks/useListedPairs";
 import { useBalances, useMemes, usePositions, useValuation } from "@/hooks/useMarket";
 import { useTx } from "@/hooks/useTx";
+import { useT } from "@/i18n/client";
 import { TokenArt, UserAvatar } from "./Art";
 import { FaucetButton } from "./FaucetButton";
 import { TxLog } from "./TxLink";
@@ -118,6 +119,8 @@ function useSwipeDrawer(onClosed: () => void) {
 /** Wallet profile: local name, bio and picture, plus balances, holdings and created coins. */
 export function ProfileDrawer({ address, onClose: onClosed }: { address: string; onClose: () => void }) {
   const w = useWallet();
+  const t = useT();
+  const tp = t.profile;
   const profile = useProfile(address);
   const memes = useMemes();
   const value = useValuation();
@@ -149,16 +152,16 @@ export function ProfileDrawer({ address, onClose: onClosed }: { address: string;
   return (
     <>
       <div className="drawer-bg" ref={scrim} onClick={onClose} />
-      <aside className="drawer" role="dialog" aria-label="Tu perfil" ref={panel} tabIndex={-1}>
+      <aside className="drawer" role="dialog" aria-label={tp.title} ref={panel} tabIndex={-1}>
         <div className="between">
-          <span className="section-title">Tu perfil</span>
-          <button className="btn ghost sm" onClick={onClose} aria-label="Cerrar">✕</button>
+          <span className="section-title">{tp.title}</span>
+          <button className="btn ghost sm" onClick={onClose} aria-label={t.common.close}>✕</button>
         </div>
 
         <div className="row" style={{ gap: 16, alignItems: "flex-start" }}>
-          <label className="avatar-edit" title="Cambiar foto">
+          <label className="avatar-edit" title={tp.changePhoto}>
             <UserAvatar address={address} image={profile.image} size={88} />
-            <span>Cambiar</span>
+            <span>{tp.change}</span>
             <input
               id="avatar-file"
               type="file"
@@ -171,7 +174,7 @@ export function ProfileDrawer({ address, onClose: onClosed }: { address: string;
                 try {
                   saveProfile(address, { image: await imageToDataUrl(f) });
                 } catch {
-                  setImgErr("No pude leer esa imagen.");
+                  setImgErr(tp.badImage);
                 }
               }}
             />
@@ -179,11 +182,11 @@ export function ProfileDrawer({ address, onClose: onClosed }: { address: string;
           <div className="stack" style={{ gap: 8, flex: 1, minWidth: 0 }}>
             <input
               className="input"
-              placeholder="Tu nombre"
+              placeholder={tp.name}
               maxLength={24}
               defaultValue={profile.name}
               onBlur={(e) => saveProfile(address, { name: e.target.value.trim() })}
-              aria-label="Nombre"
+              aria-label={tp.nameLabel}
             />
             <div className="row small">
               <button
@@ -194,43 +197,43 @@ export function ProfileDrawer({ address, onClose: onClosed }: { address: string;
                   setTimeout(() => setCopied(false), 1200);
                 }}
               >
-                {copied ? "copiada ✓" : short(address)}
+                {copied ? tp.copied : short(address)}
               </button>
               <span className="muted">{w.kind === "cavos" ? "Cavos" : "Freighter"}</span>
               {profile.image ? (
-                <button className="copy" onClick={() => saveProfile(address, { image: null })}>quitar foto</button>
+                <button className="copy" onClick={() => saveProfile(address, { image: null })}>{tp.removePhoto}</button>
               ) : (
-                <label htmlFor="avatar-file" className="copy">subir foto</label>
+                <label htmlFor="avatar-file" className="copy">{tp.uploadPhoto}</label>
               )}
             </div>
           </div>
         </div>
         <textarea
           className="input"
-          placeholder="Bio: qué memes te gustan, a qué le apuestas…"
+          placeholder={tp.bio}
           maxLength={160}
           defaultValue={profile.bio}
           onBlur={(e) => saveProfile(address, { bio: e.target.value.trim() })}
           aria-label="Bio"
         />
         {imgErr && <div className="err">{imgErr}</div>}
-        <p className="muted small">Tu perfil vive solo en este navegador.</p>
+        <p className="muted small">{tp.local}</p>
 
         <div className="stack" style={{ gap: 4 }}>
-          <span className="section-title">Valor en memes y bonos</span>
+          <span className="section-title">{tp.worth}</span>
           <span className="num" style={{ fontSize: "1.625rem" }}>{balances.data && positions.data ? usd(portfolio) : "…"}</span>
           {positions.data && holdings.length > 0 && (
             <span className="small">
-              P&L en memes <span className={`num ${pnl >= 0 ? "buy" : "sell"}`}>{usd(pnl)}</span>
-              <span className="muted"> · en USD al tipo de cambio de hoy</span>
+              {tp.pnl} <span className={`num ${pnl >= 0 ? "buy" : "sell"}`}>{usd(pnl)}</span>
+              <span className="muted">{tp.pnlNote}</span>
             </span>
           )}
         </div>
 
-        <Link href="/dividends" className="btn block" onClick={onClose}>Ver tus dividendos</Link>
+        <Link href="/dividends" className="btn block" onClick={onClose}>{tp.seeDividends}</Link>
 
         <div className="stack" style={{ gap: 6 }}>
-          <span className="section-title">Bonos</span>
+          <span className="section-title">{tp.bonds}</span>
           <div className="list">
             {PAIRS.filter((p) => listed.includes(p) || (balances.data?.[p.id] ?? 0n) > 0n).map((p) => (
               <div key={p.id}>
@@ -248,7 +251,7 @@ export function ProfileDrawer({ address, onClose: onClosed }: { address: string;
         </div>
 
         <div className="stack" style={{ gap: 6 }}>
-          <span className="section-title">Tus memes</span>
+          <span className="section-title">{tp.yourMemes}</span>
           {holdings.length ? (
             <div className="list">
               {holdings.map(({ m, bal, v, value, unrealized, cost, realized, sellAll }) => {
@@ -271,29 +274,29 @@ export function ProfileDrawer({ address, onClose: onClosed }: { address: string;
                           {bond(unrealized)} {cost > 0 && `(${pct((unrealized / cost) * 100)})`}
                         </span>
                       ) : (
-                        bal > 0n && <span className="muted">sin costo conocido</span>
+                        bal > 0n && <span className="muted">{tp.noCost}</span>
                       )}
-                      {realized !== 0 && <span className="muted num">realizado {bond(realized)}</span>}
+                      {realized !== 0 && <span className="muted num">{tp.realized(bond(realized))}</span>}
                       {sellAll && (
                         <span className="muted num">
-                          si vendes todo ~{fmt(sellAll.out, p?.decimals ?? 2)} {p?.symbol}
+                          {tp.sellAll(`${fmt(sellAll.out, p?.decimals ?? 2)} ${p?.symbol ?? ""}`)}
                           {sellAll.pnl !== null && ` (${bond(sellAll.pnl)})`}
                         </span>
                       )}
-                      {m.graduated && <span className="muted">en Soroswap: esos trades no cuentan aquí</span>}
+                      {m.graduated && <span className="muted">{tp.onSoroswap}</span>}
                     </span>
                   </Link>
                 );
               })}
             </div>
           ) : (
-            <p className="muted small">Todavía no tienes memes. Consigue un bono y compra la primera.</p>
+            <p className="muted small">{tp.noMemes}</p>
           )}
         </div>
 
         {created.length > 0 && (
           <div className="stack" style={{ gap: 6 }}>
-            <span className="section-title">Creadas por ti</span>
+            <span className="section-title">{tp.created}</span>
             <div className="list">
               {created.map((m) => {
                 const pair = PAIRS.find((p) => p.id === m.pair);
@@ -311,13 +314,13 @@ export function ProfileDrawer({ address, onClose: onClosed }: { address: string;
                         className="btn sm"
                         disabled={tx.busy || m.fees_creator === 0n}
                         onClick={async () => {
-                          if (await tx.send(calls.claimFees(address, m.id), `cobraste fees de $${m.symbol}`)) {
+                          if (await tx.send(calls.claimFees(address, m.id), tp.logClaim(m.symbol))) {
                             memes.refresh();
                             balances.refresh();
                           }
                         }}
                       >
-                        cobrar
+                        {tp.claim}
                       </button>
                     </span>
                   </div>
@@ -337,7 +340,7 @@ export function ProfileDrawer({ address, onClose: onClosed }: { address: string;
             onClose();
           }}
         >
-          Desconectar
+          {tp.disconnect}
         </button>
       </aside>
     </>

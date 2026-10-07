@@ -59,8 +59,6 @@ export interface PairInfo {
   /** Classic asset as `CODE:ISSUER`; `id` is its Stellar Asset Contract. */
   asset: string;
   name: string;
-  /** Whose debt backs it, for the UI copy. */
-  label: string;
   /** Currency the bond's NAV is quoted in. */
   currency: string;
   /** USD per unit when deployed, used until the live price loads. */
@@ -72,12 +70,9 @@ export interface PairInfo {
   decimals: number;
 }
 
-/** Copy for every Etherfuse bond we know, whether or not this deployment allows it. */
-const META: Partial<Record<string, Pick<PairInfo, "name" | "label">>> = {
-  CETES: { name: "CETES", label: "deuda de México en pesos" },
-  TESOURO: { name: "Tesouro", label: "deuda de Brasil en reales" },
-  USTRY: { name: "US Treasury", label: "deuda de EE.UU. en dólares" },
-};
+/** Names for every Etherfuse bond we know, whether or not this deployment allows it. Whose debt
+ * each one is lives in the dictionaries (`pairLabel`). */
+const NAMES: Partial<Record<string, string>> = { CETES: "CETES", TESOURO: "Tesouro", USTRY: "US Treasury" };
 
 /** Every allowed pair: Etherfuse stablebonds. */
 export const PAIRS: PairInfo[] = (Object.keys(deployments.pairs) as PairSymbol[]).map((symbol) => {
@@ -91,7 +86,7 @@ export const PAIRS: PairInfo[] = (Object.keys(deployments.pairs) as PairSymbol[]
     vPair0: BigInt(d.v_pair0),
     createFee: BigInt(d.create_fee),
     decimals: 2,
-    ...(META[symbol] ?? { name: symbol, label: "deuda soberana tokenizada" }),
+    name: NAMES[symbol] ?? symbol,
   };
 });
 

@@ -14,10 +14,13 @@ import { Identity } from "@/components/Identity";
 import { TxLog } from "@/components/TxLink";
 import { Progress } from "@/components/Progress";
 import { YieldBadge } from "@/components/YieldBadge";
+import { useT } from "@/i18n/client";
 
 export default function Create() {
   const router = useRouter();
   const w = useWallet();
+  const t = useT();
+  const tc = t.create;
   const tx = useTx();
   const [name, setName] = useState("");
   const [symbol, setSymbol] = useState("");
@@ -30,47 +33,47 @@ export default function Create() {
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (!w.address) return tx.setError("Entra con tu wallet primero (arriba a la derecha).");
-    if (!name.trim() || !sym) return tx.setError("Ponle nombre y ticker.");
+    if (!w.address) return tx.setError(tc.loginFirst);
+    if (!name.trim() || !sym) return tx.setError(tc.nameAndTicker);
     let dev = 0n;
     try {
       if (devBuy.trim()) dev = toUnits(devBuy);
     } catch (err) {
-      return tx.setError((err as Error).message);
+      return tx.setError(explain(err, t));
     }
-    setStep("Desplegando tu token…");
-    const hash = await tx.send(calls.create(w.address, name.trim(), sym, pair, dev), `creaste $${sym}`);
+    setStep(tc.deploying);
+    const hash = await tx.send(calls.create(w.address, name.trim(), sym, pair, dev), tc.logCreated(sym));
     if (!hash) return setStep("");
     try {
       const meme = await txReturn<string>(hash);
       router.push(`/m/${meme}`);
     } catch (err) {
-      tx.setError(explain(err));
+      tx.setError(explain(err, t));
       setStep("");
     }
   }
 
   return (
     <div className="create">
-      <form className="stack coupon" data-label="Aviso clasificado · llene a mano" style={{ gap: 18 }} onSubmit={submit}>
+      <form className="stack coupon" data-label={tc.couponLabel} style={{ gap: 18 }} onSubmit={submit}>
         <div className="stack" style={{ gap: 6 }}>
-          <span className="kicker">Clasificados · Nuevas emisiones</span>
-          <h1>Publica tu meme</h1>
-          <p className="deck ink2" style={{ fontStyle: "italic", fontSize: "1.125rem" }}>Sale en la edición de hoy, con su reserva en un bono soberano.</p>
+          <span className="kicker">{tc.kicker}</span>
+          <h1>{tc.title}</h1>
+          <p className="deck ink2" style={{ fontStyle: "italic", fontSize: "1.125rem" }}>{tc.deck}</p>
         </div>
         <div className="row" style={{ gap: 12, alignItems: "stretch" }}>
           <label className="field" style={{ flex: 2 }}>
-            <span>Nombre</span>
+            <span>{tc.name}</span>
             <input className="input" value={name} maxLength={32} placeholder="Taco Coin" onChange={(e) => setName(e.target.value)} />
           </label>
           <label className="field" style={{ flex: 1 }}>
-            <span>Ticker</span>
+            <span>{tc.ticker}</span>
             <input className="input" value={symbol} maxLength={12} placeholder="TACO" onChange={(e) => setSymbol(e.target.value)} />
           </label>
         </div>
 
         <div className="field">
-          <span>Respaldo de la reserva</span>
+          <span>{tc.backing}</span>
           <div className="pair-pick" role="radiogroup">
             {/* Every bond the launchpad takes, even one the faucet has run out of: the creator may already hold it. */}
             {PAIRS.map((x) => (
@@ -85,7 +88,7 @@ export default function Create() {
                 <span className="dot" />
                 <span>
                   <b>{x.symbol}</b> <span className="muted">· {x.name}</span>
-                  <span className="small ink2" style={{ display: "block" }}>{x.label}</span>
+                  <span className="small ink2" style={{ display: "block" }}>{t.pairLabel[x.symbol] ?? t.pairLabel.other}</span>
                 </span>
                 <YieldBadge pair={x} suffix="" />
               </button>
@@ -94,7 +97,7 @@ export default function Create() {
         </div>
 
         <label className="field">
-          <span>Compra inicial en {p.symbol} (opcional)</span>
+          <span>{tc.devBuy(p.symbol)}</span>
           <input
             className="input"
             inputMode="decimal"
@@ -102,37 +105,32 @@ export default function Create() {
             placeholder="0"
             onChange={(e) => setDevBuy(e.target.value)}
           />
-          <span className="small muted">Se compra en la misma transacción, antes que nadie.</span>
+          <span className="small muted">{tc.devBuyNote}</span>
         </label>
 
         <p className="small muted">
-          Crear cuesta {fmt(fromUnits(p.createFee), p.decimals)} {p.symbol}, que entran al vault de tu moneda: la mitad se reparte a sus holders.
+          {tc.cost(fmt(fromUnits(p.createFee), p.decimals), p.symbol)}
         </p>
 
         <button className="btn primary block lg" type="submit" disabled={tx.busy || !!step}>
-          {step || "Publicar mi meme"}
+          {step || tc.submit}
         </button>
         <div className="err" role="status">{tx.error}</div>
         <TxLog log={tx.log} />
       </form>
 
       <div className="stack" style={{ gap: 24 }}>
-        <div className="rule-head"><h2>Así saldrá impresa</h2></div>
+        <div className="rule-head"><h2>{tc.preview}</h2></div>
         <div className="card" style={{ marginTop: -12 }}>
           <TokenArt seed={artSeed({ symbol: sym || "TACO", name: name || "Taco Coin" })} wide />
           <span className="kicker">{p.symbol} · {name || "Taco Coin"}</span>
-          <h3>${sym || "TACO"} sale a la venta</h3>
-          {w.address && <span className="byline">Por <Identity address={w.address} size={14} /> · ahora</span>}
+          <h3>{t.news.story(sym || "TACO", { graduated: false, progress: 0 })}</h3>
+          {w.address && <span className="byline">{t.common.by} <Identity address={w.address} size={14} /> · {tc.now}</span>}
           <div className="grad"><Progress value={0} /><span>0%</span></div>
         </div>
-        <div className="rule-head"><h2>Letra pequeña</h2></div>
+        <div className="rule-head"><h2>{tc.finePrint}</h2></div>
         <div className="fine-print" style={{ marginTop: -12 }}>
-          <span>Supply fijo de 1B: 800M se venden en la curva.</span>
-          <span>La reserva se guarda en {p.symbol}, que rinde aunque nadie opere.</span>
-          <span>Al venderse los 800M, la liquidez pasa a Soroswap y queda bloqueada.</span>
-          <span>Cobras 0.5% de cada compra y venta en la curva, en {p.symbol}.</span>
-          <span>Otro 0.25% va al vault de tu moneda: la mitad se reparte a sus holders en {p.symbol} y el resto, tras graduar, recompra y quema.</span>
-          <span>La foto se busca por el nombre en Wikipedia; mientras no se puedan subir imágenes, elige un nombre que se pueda fotografiar.</span>
+          {tc.fine(p.symbol).map((line) => <span key={line}>{line}</span>)}
         </div>
       </div>
     </div>

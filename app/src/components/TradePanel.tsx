@@ -4,13 +4,14 @@ import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { calls, quoteBuy, quoteSell, quoteSwap, type Meme } from "@/lib/chain";
 import { contractUrl, IS_MAINNET, type PairInfo } from "@/lib/config";
+import { explain } from "@/lib/errors";
 import { pricePair } from "@/lib/curve";
-import { SLIPPAGE_ERROR } from "@/lib/errors";
 import { localStore } from "@/lib/local";
 import { usePrices } from "@/lib/prices";
 import { compact, fmt, fromUnits, toUnits } from "@/lib/units";
 import { useWallet } from "@/lib/wallet/WalletProvider";
 import { useTx } from "@/hooks/useTx";
+import { useT } from "@/i18n/client";
 import { FaucetButton } from "./FaucetButton";
 import { TxLog } from "./TxLink";
 
@@ -54,6 +55,8 @@ export function TradePanel({
   onDone: () => void;
 }) {
   const w = useWallet();
+  const t = useT();
+  const tr = t.trade;
   const tx = useTx();
   const pairUsd = usePrices().usd(pair.symbol);
   const inPair = (dollars: number) => (dollars / pairUsd).toFixed(pair.decimals);
@@ -140,33 +143,33 @@ export function TradePanel({
   }, [key, amount, buy, meme, pool, pair.id]);
 
   async function go(slip = bps) {
-    if (!w.address) return tx.setError("Conecta una wallet primero.");
+    if (!w.address) return tx.setError(tr.connect);
     let units: bigint;
     try {
       units = toUnits(amount);
     } catch (e) {
-      return tx.setError((e as Error).message);
+      return tx.setError(explain(e, t));
     }
-    if (units <= 0n) return tx.setError("Escribe una cantidad mayor a cero.");
-    if (!quote) return tx.setError("Todavía estoy cotizando, intenta en un momento.");
-    if (!buy && units > memeBalance) return tx.setError(`Solo tienes ${compact(fromUnits(memeBalance))} $${meme.symbol}.`);
+    if (units <= 0n) return tx.setError(tr.zero);
+    if (!quote) return tx.setError(tr.quoting);
+    if (!buy && units > memeBalance) return tx.setError(tr.onlyHave(compact(fromUnits(memeBalance)), meme.symbol));
     const minOut = (quote.outUnits * BigInt(10_000 - slip)) / 10_000n;
     if (inPool) {
       const [from, to] = buy ? [pair.id, meme.id] : [meme.id, pair.id];
       const label = buy
-        ? `buy $${meme.symbol} en Soroswap −${fmt(fromUnits(units), pair.decimals)} ${pair.symbol} +${compact(quote.out)}`
-        : `sell $${meme.symbol} en Soroswap −${compact(fromUnits(units))} +${fmt(quote.out, pair.decimals)} ${pair.symbol}`;
+        ? tr.logBuy(meme.symbol, `${fmt(fromUnits(units), pair.decimals)} ${pair.symbol}`, compact(quote.out), true)
+        : tr.logSell(meme.symbol, compact(fromUnits(units)), `${fmt(quote.out, pair.decimals)} ${pair.symbol}`, true);
       if (await tx.send(calls.swap(w.address, from, to, units, minOut), label)) onDone();
       return;
     }
     const hash = buy
       ? await tx.send(
           calls.buy(w.address, meme.id, units, minOut),
-          `buy $${meme.symbol} −${fmt(quote.charged ?? fromUnits(units), pair.decimals)} ${pair.symbol} +${compact(quote.out)}`,
+          tr.logBuy(meme.symbol, `${fmt(quote.charged ?? fromUnits(units), pair.decimals)} ${pair.symbol}`, compact(quote.out), false),
         )
       : await tx.send(
           calls.sell(w.address, meme.id, units, minOut),
-          `sell $${meme.symbol} −${compact(fromUnits(units))} +${fmt(quote.out, pair.decimals)} ${pair.symbol}`,
+          tr.logSell(meme.symbol, compact(fromUnits(units)), `${fmt(quote.out, pair.decimals)} ${pair.symbol}`, false),
         );
     if (!hash) return;
     if (quote.fills) await migrate();
@@ -174,22 +177,22 @@ export function TradePanel({
   }
 
   async function migrate() {
-    if (await tx.send(calls.migrate(meme.id), `$${meme.symbol} pasó a Soroswap`)) onDone();
+    if (await tx.send(calls.migrate(meme.id), tr.logMigrate(meme.symbol))) onDone();
   }
 
   async function buyback() {
-    if (await tx.send(calls.buyback(meme.id), `recompraste y quemaste $${meme.symbol}`)) onDone();
+    if (await tx.send(calls.buyback(meme.id), tr.logBuyback(meme.symbol))) onDone();
   }
 
   // Sold out but not migrated yet: the only thing to do is open the pool.
   if (meme.graduated && !meme.pool) {
     return (
-      <div className="panel stack coupon" data-label="Recorte y abra el pool">
-        <h3>Graduada</h3>
-        <p className="small ink2">La curva se vendió completa. Falta abrir su pool en Soroswap; cualquiera puede hacerlo.</p>
+      <div className="panel stack coupon" data-label={tr.openPoolLabel}>
+        <h3>{t.common.graduated}</h3>
+        <p className="small ink2">{tr.soldOut}</p>
         {w.address && (
           <button className="btn block lg" onClick={migrate} disabled={tx.busy}>
-            {tx.busy ? "Firmando…" : "Abrir pool en Soroswap"}
+            {tx.busy ? t.common.signing : tr.openPool}
           </button>
         )}
         <div className="err" role="status">{tx.error}</div>
@@ -207,23 +210,23 @@ export function TradePanel({
 
   return (
     <>
-      <div className="panel stack coupon" id="trade" data-label={`Recorte y opere $${meme.symbol}`}>
+      <div className="panel stack coupon" id="trade" data-label={tr.couponLabel(meme.symbol)}>
         {meme.pool && (
           <p className="small ink2">
-            Graduada: se opera en su pool de Soroswap, con la liquidez bloqueada para siempre.{" "}
-            <a className="copy" href={contractUrl(meme.pool)} target="_blank" rel="noopener">ver pool ↗</a>
+            {tr.inPool}{" "}
+            <a className="copy" href={contractUrl(meme.pool)} target="_blank" rel="noopener">{tr.seePool}</a>
           </p>
         )}
-        <div className="seg" role="group" aria-label="Acción">
-          <button className="is-buy" aria-pressed={buy} onClick={() => { setSide("buy"); setAmount(inPair(QUICK_USD[1])); }}>Comprar</button>
-          <button className="is-sell" aria-pressed={!buy} onClick={() => { setSide("sell"); setAmount(String(Math.floor(fromUnits(memeBalance)))); }}>Vender</button>
+        <div className="seg" role="group" aria-label={tr.action}>
+          <button className="is-buy" aria-pressed={buy} onClick={() => { setSide("buy"); setAmount(inPair(QUICK_USD[1])); }}>{tr.buy}</button>
+          <button className="is-sell" aria-pressed={!buy} onClick={() => { setSide("sell"); setAmount(String(Math.floor(fromUnits(memeBalance)))); }}>{tr.sell}</button>
         </div>
         <label className="field">
           <span className="between">
-            <span>{buy ? `Pagas en ${pair.symbol}` : `Vendes $${meme.symbol}`}</span>
+            <span>{buy ? tr.pay(pair.symbol) : tr.selling(meme.symbol)}</span>
             {w.address && (
               <span className="num muted">
-                saldo {buy ? (pairBalance === null ? "…" : fmt(fromUnits(pairBalance), pair.decimals)) : compact(fromUnits(memeBalance))}
+                {tr.balance} {buy ? (pairBalance === null ? "…" : fmt(fromUnits(pairBalance), pair.decimals)) : compact(fromUnits(memeBalance))}
               </span>
             )}
           </span>
@@ -236,16 +239,16 @@ export function TradePanel({
         </div>
         <div className="quote" data-stale={(shown && !quote) || undefined}>
           <div>
-            <span>Recibes</span>
+            <span>{tr.receive}</span>
             <b className="num">
               {shown ? (buy ? `${compact(shown.out)} $${meme.symbol}` : `${fmt(shown.out, pair.decimals)} ${pair.symbol}`) : "–"}
             </b>
           </div>
-          <div><span>Impacto en precio</span><span className="num">{shown ? (shown.impact >= 0 ? "+" : "") + fmt(shown.impact, 2) + "%" : "–"}</span></div>
-          <div><span>{inPool ? "Fee 0.3% de Soroswap" : "Fee 1% (½ creador · ¼ vault y holders · ¼ protocolo)"}</span><span className="num">{shown ? `${fmt(shown.fee, pair.decimals)} ${pair.symbol}` : "–"}</span></div>
+          <div><span>{tr.impact}</span><span className="num">{shown ? (shown.impact >= 0 ? "+" : "") + fmt(shown.impact, 2) + "%" : "–"}</span></div>
+          <div><span>{inPool ? tr.poolFee : tr.curveFee}</span><span className="num">{shown ? `${fmt(shown.fee, pair.decimals)} ${pair.symbol}` : "–"}</span></div>
           <div>
-            <span>Slippage máx.</span>
-            <span className="chips" role="group" aria-label="Slippage máximo">
+            <span>{tr.slippage}</span>
+            <span className="chips" role="group" aria-label={tr.slippageLabel}>
               {SLIPPAGES.map((s) => (
                 <button key={s} type="button" className="chip" aria-pressed={bps === s} onClick={() => slippage.set(s)}>
                   {s / 100}%
@@ -254,23 +257,25 @@ export function TradePanel({
             </span>
           </div>
           {buy && shown?.fills && shown.charged !== undefined && (
-            <div><span>Se cobra (llena la curva)</span><span className="num">{fmt(shown.charged, pair.decimals)} {pair.symbol}</span></div>
+            <div><span>{tr.fills}</span><span className="num">{fmt(shown.charged, pair.decimals)} {pair.symbol}</span></div>
           )}
         </div>
         {w.address ? (
           <button className={`btn block lg ${buy ? "buy-btn" : "sell-btn"}`} onClick={() => go()} disabled={tx.busy}>
-            {tx.busy ? "Firmando…" : `${buy ? "Comprar" : "Vender"} $${meme.symbol}`}
+            {tx.busy ? t.common.signing : tr.submit(buy, meme.symbol)}
           </button>
         ) : (
-          <p className="muted small">Entra con tu wallet (arriba a la derecha) para operar.</p>
+          <p className="muted small">{t.common.loginToTrade}</p>
         )}
         {buy && w.address && pairBalance === 0n && (
           <div className="between small ink2">
-            <span>No tienes {pair.symbol}.</span>
+            <span>{t.common.noBond(pair.symbol)}</span>
             {IS_MAINNET ? (
               <span>
-                Consíguelos en <a className="copy" href="https://app.etherfuse.com" target="_blank" rel="noopener">Etherfuse ↗</a> o{" "}
-                <a className="copy" href="https://aqua.network" target="_blank" rel="noopener">Aquarius ↗</a>
+                {tr.getIt(
+                  <a className="copy" href="https://app.etherfuse.com" target="_blank" rel="noopener">Etherfuse ↗</a>,
+                  <a className="copy" href="https://aqua.network" target="_blank" rel="noopener">Aquarius ↗</a>,
+                )}
               </span>
             ) : (
               <FaucetButton pair={pair} />
@@ -278,7 +283,7 @@ export function TradePanel({
           </div>
         )}
         <div className="err" role="status">{tx.error}</div>
-        {tx.error === SLIPPAGE_ERROR && nextBps && (
+        {tx.error === t.errors.slippage && nextBps && (
           <button
             className="btn block"
             disabled={tx.busy}
@@ -287,7 +292,7 @@ export function TradePanel({
               go(nextBps);
             }}
           >
-            Reintentar con {nextBps / 100}%
+            {tr.retry(nextBps / 100)}
           </button>
         )}
         <TxLog log={tx.log} />
@@ -295,15 +300,15 @@ export function TradePanel({
       {meme.pool && (
         <div className="panel stack">
           <div className="between">
-            <h3>Recompra y quema</h3>
+            <h3>{tr.buyback}</h3>
             <span className="num">{fmt(fromUnits(meme.vault), pair.decimals)} {pair.symbol}</span>
           </div>
           <p className="small ink2">
-            El vault gasta hasta 1% de la reserva del pool en ${meme.symbol} y lo quema. Cualquiera puede llamarlo.
+            {tr.buybackNote(meme.symbol)}
           </p>
           {w.address && meme.vault > 0n && (
             <button className="btn block" onClick={buyback} disabled={tx.busy}>
-              {tx.busy ? "Firmando…" : `Recomprar y quemar $${meme.symbol}`}
+              {tx.busy ? t.common.signing : tr.buybackDo(meme.symbol)}
             </button>
           )}
         </div>

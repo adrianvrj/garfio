@@ -2,6 +2,7 @@
 
 import { useProfile } from "@/lib/profile";
 import { short } from "@/lib/units";
+import { useT } from "@/i18n/client";
 import { useWallet } from "@/lib/wallet/WalletProvider";
 import { UserAvatar } from "./Art";
 
@@ -9,13 +10,14 @@ import { UserAvatar } from "./Art";
 export function Identity({ address, size = 18, strong = false }: { address: string; size?: number; strong?: boolean }) {
   const p = useProfile(address);
   const { address: me } = useWallet();
+  const t = useT();
   const label = p.name || short(address);
   return (
     <span className="row" style={{ gap: 6, display: "inline-flex", minWidth: 0 }} title={address}>
       <UserAvatar address={address} image={p.image} size={size} />
       <span style={{ fontWeight: strong ? 600 : 400, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
         {label}
-        {me === address && <span className="muted"> (tú)</span>}
+        {me === address && <span className="muted"> ({t.common.you})</span>}
       </span>
     </span>
   );

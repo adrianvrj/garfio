@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { Call } from "@/lib/chain";
+import { useT } from "@/i18n/client";
 import { explain } from "@/lib/errors";
 import { useWallet } from "@/lib/wallet/WalletProvider";
 
@@ -16,6 +17,7 @@ const buzz = (pattern: number | number[]) => navigator.vibrate?.(pattern);
 /** Sends transactions and keeps a short log and the last error for the UI. */
 export function useTx() {
   const w = useWallet();
+  const t = useT();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [log, setLog] = useState<TxLog[]>([]);
@@ -30,7 +32,7 @@ export function useTx() {
       buzz(10);
       return hash;
     } catch (e) {
-      setError(explain(e));
+      setError(explain(e, t));
       buzz([20, 60, 20]);
       return null;
     } finally {

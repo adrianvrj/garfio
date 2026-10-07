@@ -11,10 +11,13 @@ import { compact, fmt, fromUnits, usd } from "@/lib/units";
 import { useWallet } from "@/lib/wallet/WalletProvider";
 import { TokenArt } from "@/components/Art";
 import { TxLog } from "@/components/TxLink";
+import { useT } from "@/i18n/client";
 
 /** Every meme the wallet holds and what it can claim from each now. */
 export default function Dividends() {
   const w = useWallet();
+  const t = useT();
+  const td = t.dividends;
   const memes = useMemes();
   const rows = useDividends(w.address, memes.data ?? []);
   const { tx, claim } = useDividendTx();
@@ -43,7 +46,7 @@ export default function Dividends() {
   /** One claim per meme: Soroban runs a single contract call per transaction. Stops at the first failure. */
   async function claimAll() {
     for (const [i, r] of owed.entries()) {
-      setBatch(`Cobrando ${i + 1} de ${owed.length}…`);
+      setBatch(td.claiming(i + 1, owed.length));
       if (!(await claim(r.m, r.owed))) break;
     }
     setBatch(null);
@@ -53,22 +56,22 @@ export default function Dividends() {
   const headline = !rows.data
     ? null
     : owed.length
-      ? `${usd(owedUsd)} por cobrar en ${owed.length === 1 ? `$${owed[0].m.symbol}` : `${owed.length} memes`}`
+      ? td.owed(usd(owedUsd), owed.length === 1 ? `$${owed[0].m.symbol}` : td.memes(owed.length))
       : list.length
-        ? `Cada compra y venta de ${list.length === 1 ? `$${list[0].m.symbol}` : `tus ${list.length} memes`} te paga en su bono`
+        ? td.everyTrade(list.length === 1 ? `$${list[0].m.symbol}` : td.yourMemes(list.length))
         : null;
 
   return (
     <div className="dividends">
       <div className="stack" style={{ gap: 20 }}>
         <header className="stack" style={{ gap: 8 }}>
-          <h1>Tus dividendos</h1>
+          <h1>{td.title}</h1>
           {headline && <p className="deck">{headline}.</p>}
         </header>
 
         {!w.address ? (
           <Empty>
-            <p>Entra con tu wallet, arriba a la derecha, para ver lo que te toca de cada meme que tienes.</p>
+            <p>{td.loginFirst}</p>
           </Empty>
         ) : !rows.data ? (
           <div className="div-list" aria-busy="true">
@@ -88,11 +91,8 @@ export default function Dividends() {
           </div>
         ) : (
           <Empty>
-            <p>
-              No tienes memes todavía. Quien tiene un meme se lleva parte de sus fees, en el bono que lo respalda y según
-              cuánto tenga.
-            </p>
-            <Link href="/" className="btn primary">Ver memes</Link>
+            <p>{td.none}</p>
+            <Link href="/" className="btn primary">{td.seeMemes}</Link>
           </Empty>
         )}
         <div className="err" role="status">{tx.error}</div>
@@ -101,23 +101,20 @@ export default function Dividends() {
 
       <aside className="stack" style={{ gap: 24 }}>
         {w.address && rows.data && list.length > 0 && (
-          <section className="indicator" aria-label="Por cobrar">
-            <div className="rule-head"><h2>Por cobrar</h2></div>
+          <section className="indicator" aria-label={td.toClaim}>
+            <div className="rule-head"><h2>{td.toClaim}</h2></div>
             <b className="indicator-total">{usd(owedUsd)}</b>
             {owed.length > 1 && (
               <button className="btn primary block lg" onClick={claimAll} disabled={tx.busy || !!batch} style={{ marginTop: 8 }}>
-                {batch ?? `Cobrar los ${owed.length}`}
+                {batch ?? td.claimAll(owed.length)}
               </button>
             )}
           </section>
         )}
         <section className="stack" style={{ gap: 10 }}>
-          <div className="rule-head"><h3>Cómo funciona</h3></div>
+          <div className="rule-head"><h3>{td.how}</h3></div>
           <div className="fine-print">
-            <span>Cada compra y venta en la curva paga 1%; un cuarto va al vault del meme.</span>
-            <span>La mitad de lo que entra al vault es de quienes tienen el meme, según cuánto tengan. La otra mitad recompra y quema.</span>
-            <span>Se reparte en la misma compra o venta, según lo que cada quien tenía antes de ella.</span>
-            <span>Cobrar te manda el bono a tu wallet, y sigue rindiendo ahí.</span>
+            {td.fine.map((line) => <span key={line}>{line}</span>)}
           </div>
         </section>
       </aside>
@@ -137,6 +134,7 @@ function Row({
   onClaim: () => void;
 }) {
   const { m, bal, owed } = r;
+  const td = useT().dividends;
   const p = pairById(m.pair);
   const bond = (v: bigint) => `${fmt(fromUnits(v), p?.decimals ?? 2)} ${p?.symbol ?? ""}`;
   return (
@@ -147,7 +145,7 @@ function Row({
       <div className="div-name">
         <Link href={`/m/${m.id}`}><b>${m.symbol}</b></Link>
         <span className="muted small num">
-          tienes {compact(fromUnits(bal))} · paga en {p?.symbol}
+          {td.holds(compact(fromUnits(bal)), p?.symbol ?? "")}
         </span>
       </div>
       <div className="div-amount">
@@ -157,11 +155,11 @@ function Row({
             <span className="muted small num">{usd(usdOf(owed, m.pair))}</span>
           </>
         ) : (
-          <span className="muted small">Nada por ahora</span>
+          <span className="muted small">{td.nothing}</span>
         )}
       </div>
       <div className="div-action">
-        {owed > 0n && <button className="btn primary" onClick={onClaim} disabled={busy}>Cobrar</button>}
+        {owed > 0n && <button className="btn primary" onClick={onClaim} disabled={busy}>{td.claim}</button>}
       </div>
     </div>
   );

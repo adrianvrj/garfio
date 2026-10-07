@@ -5,6 +5,7 @@ import { pairById } from "./config";
 import { gradProgress, pricePair, SUPPLY } from "./curve";
 import { bondUsd, type Rates } from "./rates";
 import { compact, fmt, fromUnits, usd } from "./units";
+import { es } from "@/i18n/es";
 
 const API = (method: string) => `https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/${method}`;
 
@@ -42,7 +43,7 @@ export function memeCard(m: Meme, rates: Rates | null): { html: string; buttons:
   const html = [
     `<b>$${esc(m.symbol)}</b> · ${esc(m.name)}`,
     m.pool ? `Market cap ${usd(mcap, 0)}` : `Market cap ${usd(mcap, 0)} · reserva ${compact(fromUnits(m.real_pair))} ${pair?.symbol ?? ""}`,
-    pair ? `Respaldada por ${pair.symbol}, ${pair.label}` : "",
+    pair ? `Respaldada por ${pair.symbol}, ${es.pairLabel[pair.symbol] ?? es.pairLabel.other}` : "",
     state,
   ]
     .filter(Boolean)

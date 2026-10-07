@@ -1,6 +1,7 @@
 import { Asset, Contract, Operation, TransactionBuilder, BASE_FEE, rpc, xdr } from "@stellar/stellar-sdk";
 import { FRIENDBOT_URL, IS_MAINNET, NETWORK_PASSPHRASE } from "../config";
 import { server, type Call } from "../chain";
+import { Oops } from "../errors";
 
 // Loaded on first use: the kit restyles <html> on import, which breaks hydration.
 let kit: Promise<typeof import("@creit.tech/stellar-wallets-kit/sdk").StellarWalletsKit> | null = null;
@@ -30,7 +31,7 @@ async function ensureAccount(address: string) {
   try {
     return await server.getAccount(address);
   } catch {
-    if (IS_MAINNET) throw new Error("Tu cuenta todavía no existe en mainnet: necesita XLM.");
+    if (IS_MAINNET) throw new Oops("noMainnetAccount");
     await fetch(`${FRIENDBOT_URL}?addr=${address}`);
     return await server.getAccount(address);
   }
@@ -52,9 +53,9 @@ async function submit(address: string, operation: xdr.Operation): Promise<string
     address,
   });
   const sent = await server.sendTransaction(TransactionBuilder.fromXDR(signedTxXdr, NETWORK_PASSPHRASE));
-  if (sent.status === "ERROR") throw new Error("La red rechazó la transacción.");
+  if (sent.status === "ERROR") throw new Oops("networkRejected");
   const done = await server.pollTransaction(sent.hash, { attempts: 30 });
-  if (done.status !== rpc.Api.GetTransactionStatus.SUCCESS) throw new Error("La transacción falló on-chain.");
+  if (done.status !== rpc.Api.GetTransactionStatus.SUCCESS) throw new Oops("txFailed");
   return sent.hash;
 }
 

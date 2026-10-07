@@ -19,7 +19,7 @@ const Ctx = createContext<Prices | null>(null);
 
 async function fetchRates(): Promise<Rates> {
   const res = await fetch("/api/rates");
-  if (!res.ok) throw new Error("Sin precios de Etherfuse");
+  if (!res.ok) throw new Error("No Etherfuse prices");
   return res.json();
 }
 
