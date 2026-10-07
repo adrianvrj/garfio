@@ -96,6 +96,7 @@ export function Header() {
           {w.address && !IS_MAINNET && (
             <button className="btn" onClick={() => openDeposit()}>Depositar</button>
           )}
+          {w.address && <Link href="/dividends" className="btn hide-sm">Dividendos</Link>}
           <Link href="/create" className="btn primary">Crear moneda</Link>
           {w.address ? (
             <button className="wallet-chip" onClick={() => setDrawer(w.address)} aria-label="Abrir perfil">

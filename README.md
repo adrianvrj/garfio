@@ -1,6 +1,6 @@
 # Hooks
 
-**Memecoins backed by sovereign bonds, on Stellar.** Every memecoin launched on Hooks keeps its bonding-curve reserve in an Etherfuse stablebond (Mexico's CETES, Brazil's Tesouro) instead of XLM. Every meme launched buys sovereign debt, the reserve earns the bond's yield even when nobody trades, and a quarter of every fee goes to a vault that buys the meme back and burns it once it trades on Soroswap.
+**Memecoins backed by sovereign bonds, on Stellar.** Every memecoin launched on Hooks keeps its bonding-curve reserve in an Etherfuse stablebond (Mexico's CETES, Brazil's Tesouro) instead of XLM. Every meme launched buys sovereign debt, the reserve earns the bond's yield even when nobody trades, and a quarter of every fee goes to the meme's vault: half of it is paid to the meme's holders as dividends in the bond, and the rest buys the meme back and burns it once it trades on Soroswap.
 
 Hooks is the retail channel for Stellar's tokenized assets.
 
@@ -33,7 +33,7 @@ Pairing memes with real assets turned speculation into demand for those assets. 
 | Lesson from Robinhood Chain | In Hooks |
 | --- | --- |
 | Memes are the distribution channel for RWAs | Every curve's reserve is a sovereign bond. The home page counts the bonds memes have bought |
-| The paired asset has to give holders something | The reserve earns 5.55% (CETES) or 11.55% (Tesouro) a year. A quarter of every fee goes to a vault that buys the meme back and burns it |
+| The paired asset has to give holders something | The reserve earns 5.55% (CETES) or 11.55% (Tesouro) a year. A quarter of every fee goes to the meme's vault: half is paid to its holders in the bond, by balance, and the rest buys the meme back and burns it |
 | Creators need to get paid | Half of every fee goes to the creator, paid in a bond that keeps earning |
 | Noxa held 65.8% of launches and lost them to bot spam in days | A ~$1 create fee that seeds the meme's vault, and a rate-limited faucet |
 | Retail did not come through the Robinhood app (1–2% of activity) but through bots and terminals | Share cards on every coin and a key-less Telegram bot (ready, not yet deployed) |
@@ -48,15 +48,16 @@ It works on Stellar today because Etherfuse's bonds are there already, freely tr
 3. Create a meme backed by CETES or Tesouro, with a first buy in the same transaction.
 4. Make the last buy on a meme prepared at 95% (`demo.sh`). It graduates, and `migrate` opens its Soroswap pool with the liquidity locked for good.
 5. Trade it on Soroswap from the same page, and fire the vault's buyback and burn.
-6. The backing panel: what the reserve earns per day in pesos, and the total of bonds bought by memes.
+6. Distribute the meme's dividends and claim them: the bond lands in each holder's wallet.
+7. The backing panel: what the reserve earns per day in pesos, and the total of bonds bought by memes.
 
-Every step runs on testnet today (launchpad `CDRRVH5TNLYJOIMLSXMTWRMEWPWSBZOZURAIKDI3BATK7BQQH2DJH3VP`).
+Every step runs on testnet today (launchpad `CCUMQPTCERBE7N57WNMWSQRZFHKIYKQZC3U3JLGTVMKKP7F4OA7YA2UT`).
 
 ### What we have not solved yet
 
 - **Unaudited contracts.** The admin can replace the launchpad's code, and with it every rule; the app says so in its footer. Mainnet needs a multisig admin.
 - **Small markets.** CETES on Stellar is a ~$3.9M float. A $300 curve graduates into a pool of about $600, where a $7 buy moves the price over 30%. Mainnet needs larger curves, and a meme that succeeds could hold a meaningful share of the float, like NVDA on Robinhood Chain.
-- **Regulation.** Memecoins whose reserve is sovereign debt will raise questions we have not answered yet.
+- **Regulation.** Memecoins whose reserve is sovereign debt, and that pay their holders in it, will raise questions we have not answered yet. The SEC staff's [statement on meme coins](https://www.sec.gov/newsroom/speeches-statements/staff-statement-meme-coins) describes them as coins that do not "generate a yield"; we will settle this before mainnet.
 
 <details>
 <summary>Sources</summary>
@@ -79,7 +80,7 @@ Every step runs on testnet today (launchpad `CDRRVH5TNLYJOIMLSXMTWRMEWPWSBZOZURA
 | Path | What it is |
 | --- | --- |
 | `contracts/launchpad` | `create`, `buy`, `sell`, `migrate`, `buyback`, `claim_fees`, `claim_protocol`, `add_pair`, `upgrade`, plus paged views and quotes. Constant-product curve with virtual reserves (pump.fun model). Tests run against Soroswap's real factory and pair (`testdata/`) |
-| `contracts/meme-token` | SEP-41 (OpenZeppelin), burnable. The constructor mints the fixed 1B supply to the launchpad, and there is no mint entrypoint |
+| `contracts/meme-token` | SEP-41 (OpenZeppelin), burnable. The constructor mints the fixed 1B supply to the launchpad, and there is no mint entrypoint. It also keeps the meme's dividends (`dividend.rs`) |
 | `scripts/` | `deploy.sh` → `etherfuse-onramp.sh` (stocks the faucet) → `seed.sh` → `demo.sh`, and `telegram-setup.sh` |
 | `deployments/<net>.json` | Contract IDs; copied into the app as `src/contracts/deployments.<net>.json` |
 | `app/` | Next.js app. Reads the chain through the RPC, the trade history through Mercury. Wallets: Cavos (email/OAuth, fees sponsored by Cavos) or Freighter via Stellar Wallets Kit |
@@ -91,6 +92,9 @@ Every step runs on testnet today (launchpad `CDRRVH5TNLYJOIMLSXMTWRMEWPWSBZOZURA
 3. **Graduation.** When the 800M are sold, anyone calls `migrate`: the last 200M and the reserve open a Soroswap pool at the curve's final price, and the LP shares stay in the launchpad forever. Reserve the pool does not need goes to the vault.
 4. **Soroswap.** Once migrated, the meme trades against its pool. The app quotes and swaps through Soroswap's router on the same coin page, and its chart and trades go on from the pool's `swap` and `sync` events.
 5. **Buyback.** Anyone calls `buyback`: the vault spends up to 1% of the pool's bond reserve on the meme and burns it. The cap keeps each call too small to sandwich profitably against Soroswap's 0.3% fee.
+6. **Dividends.** `DIV_BPS` (5000 by default, set at deploy) of everything bound for the vault, the create fee, the 0.25% and the migration leftover, is owed to the meme's holders instead. Anyone calls `distribute`: the launchpad sends it to the meme's token, which spreads it by balance. Each holder, or anyone for them, calls `claim` on the token and gets the bond. The launchpad, the token and the meme's Soroswap pools never earn: `migrate` excludes the pool before seeding it, and an earlier pool's earnings go back to the holders.
+
+The token keeps the accounting because Soroban forbids re-entry: the launchpad moves memes in `buy`, `sell`, `migrate` and `buyback`, and those transfers cannot call back into it. Every transfer and burn settles both sides first (an accumulated-per-share counter, as Flap does), earnings round down per holder and the rounding the counter leaves is carried to the next deposit, so claims never add up to more than was paid in.
 
 `START_USD` (default $300) sets each curve's opening reserve; graduation happens at about 2.93 times it, so it also caps what one meme's reserve holds.
 

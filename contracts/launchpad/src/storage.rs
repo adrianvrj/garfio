@@ -10,6 +10,7 @@ pub enum Key {
     Admin,
     MemeWasm,
     AmmFactory,
+    DivBps,
     MemeCount,
     Pairs,
     /// The n-th meme ever created, so the list pages instead of living in one growing entry.
@@ -43,8 +44,11 @@ pub struct Curve {
     pub sold: i128,
     pub fees_creator: i128,
     /// Pair set aside for the meme's holders: a quarter of each fee, the create fee and the
-    /// reserve the pool did not need. Once migrated, `buyback` spends it on memes and burns them.
+    /// reserve the pool did not need, less the `div_bps` share that goes to `div_pending`.
+    /// Once migrated, `buyback` spends it on memes and burns them.
     pub vault: i128,
+    /// Pair owed to the meme's holders as dividends; `distribute` sends it to the token.
+    pub div_pending: i128,
     /// Memes burned by migration leftovers and buybacks.
     pub burned: i128,
     pub created_at: u64,
@@ -101,6 +105,15 @@ pub fn amm_factory(e: &Env) -> Address {
 
 pub fn set_amm_factory(e: &Env, f: &Address) {
     e.storage().instance().set(&Key::AmmFactory, f);
+}
+
+/// Basis points of every vault inflow that go to the holders as dividends instead.
+pub fn div_bps(e: &Env) -> i128 {
+    e.storage().instance().get(&Key::DivBps).unwrap()
+}
+
+pub fn set_div_bps(e: &Env, bps: i128) {
+    e.storage().instance().set(&Key::DivBps, &bps);
 }
 
 pub fn meme_count(e: &Env) -> u32 {

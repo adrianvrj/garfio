@@ -107,7 +107,7 @@ export default function Create() {
         </label>
 
         <p className="small muted">
-          Crear cuesta {fmt(fromUnits(p.createFee), p.decimals)} {p.symbol}, que entran al vault de recompra de tu moneda.
+          Crear cuesta {fmt(fromUnits(p.createFee), p.decimals)} {p.symbol}, que entran al vault de tu moneda: la mitad se reparte a sus holders.
         </p>
 
         <button className="btn primary block lg" type="submit" disabled={tx.busy || !!step}>
@@ -132,7 +132,7 @@ export default function Create() {
           <span>La reserva se guarda en {p.symbol}, que rinde aunque nadie opere.</span>
           <span>Al venderse los 800M, la liquidez pasa a Soroswap y queda bloqueada.</span>
           <span>Cobras 0.5% de cada compra y venta en la curva, en {p.symbol}.</span>
-          <span>Otro 0.25% va al vault de tu moneda: tras graduar, recompra y quema.</span>
+          <span>Otro 0.25% va al vault de tu moneda: la mitad se reparte a sus holders en {p.symbol} y el resto, tras graduar, recompra y quema.</span>
           <span>La foto se busca por el nombre en Wikipedia; mientras no se puedan subir imágenes, elige un nombre que se pueda fotografiar.</span>
         </div>
       </div>

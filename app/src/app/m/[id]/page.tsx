@@ -16,6 +16,7 @@ import { TokenArt } from "@/components/Art";
 import { PriceChart } from "@/components/PriceChart";
 import { Identity } from "@/components/Identity";
 import { TradePanel } from "@/components/TradePanel";
+import { DividendPanel } from "@/components/DividendPanel";
 import { Progress } from "@/components/Progress";
 import { FavoriteButton } from "@/components/TokenCard";
 import { YieldBadge } from "@/components/YieldBadge";
@@ -257,6 +258,15 @@ export default function CoinPage() {
           }}
         />
 
+        <DividendPanel
+          meme={m}
+          pair={pair}
+          onDone={() => {
+            meme.refresh();
+            balances.refresh();
+          }}
+        />
+
         <div className="panel stack">
           <div className="between">
             <h3>Curva de bonding</h3>
@@ -300,6 +310,10 @@ export default function CoinPage() {
           <div className="between small">
             <span className="muted">Vault de recompra</span>
             <span className="num">{fmt(fromUnits(m.vault), pair.decimals)} {pair.symbol} · {usd(fromUnits(m.vault) * v.pairUsd, 2)}</span>
+          </div>
+          <div className="between small">
+            <span className="muted">Dividendos por repartir</span>
+            <span className="num">{fmt(fromUnits(m.div_pending), pair.decimals)} {pair.symbol} · {usd(fromUnits(m.div_pending) * v.pairUsd, 2)}</span>
           </div>
           <div className="between small">
             <span className="muted">Quemado por recompras</span>

@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # Builds the contracts, deploys a new launchpad wired to Soroswap and allows Etherfuse's bonds.
-# Usage: [NET=mainnet] [PAIRS="CETES TESOURO USTRY"] ./scripts/deploy.sh
+# Usage: [NET=mainnet] [PAIRS="CETES TESOURO USTRY"] [DIV_BPS=5000] ./scripts/deploy.sh
+# DIV_BPS: basis points of every vault inflow paid to the meme's holders as dividends.
 source "$(dirname "$0")/lib.sh"
 
 # Soroswap's factory: github.com/soroswap/core/blob/main/public/{testnet,mainnet}.contracts.json
-case "$NET" in
 # The router is only for the app: it trades graduated memes against their pool.
 case "$NET" in
   testnet) DEFAULT_FACTORY=CDP3HMUH6SMS3S7NPGNDJLULCOXXEPSHY4JKUKMBNQMATHDHWXRRJTBY DEFAULT_ROUTER=CCJUD55AG6W5HAI5LRVNKAE5WDP5XGZBUDS5WNTIVDU7O264UZZE7BRD ;;
@@ -13,6 +13,7 @@ esac
 AMM_FACTORY="${AMM_FACTORY:-$DEFAULT_FACTORY}"
 AMM_ROUTER="${AMM_ROUTER:-$DEFAULT_ROUTER}"
 PAIRS="${PAIRS:-CETES TESOURO USTRY}"
+DIV_BPS="${DIV_BPS:-5000}"
 
 ensure_key "$ADMIN"
 log "building contracts"
@@ -24,11 +25,11 @@ MEME_HASH=$(stellar contract upload --network "$NET" --source "$ADMIN" --wasm "$
 log "deploying launchpad"
 LAUNCHPAD=$(stellar contract deploy --network "$NET" --source "$ADMIN" \
   --wasm "$WASM_DIR/launchpad.wasm" --alias "garfio-launchpad-$NET" \
-  -- --admin "$ADMIN" --meme_wasm "$MEME_HASH" --amm_factory "$AMM_FACTORY")
+  -- --admin "$ADMIN" --meme_wasm "$MEME_HASH" --amm_factory "$AMM_FACTORY" --div_bps "$DIV_BPS")
 
 echo '{}' >"$DEPLOY_JSON"
 json_set ".network = \"$NET\" | .launchpad = \"$LAUNCHPAD\" | .admin = \"$(stellar keys address "$ADMIN")\" |
-  .meme_wasm = \"$MEME_HASH\" | .amm_factory = \"$AMM_FACTORY\" | .amm_router = \"$AMM_ROUTER\" | .deployed_at = \"$(date -u +%FT%TZ)\" | .pairs = {}"
+  .meme_wasm = \"$MEME_HASH\" | .amm_factory = \"$AMM_FACTORY\" | .amm_router = \"$AMM_ROUTER\" | .div_bps = $DIV_BPS | .deployed_at = \"$(date -u +%FT%TZ)\" | .pairs = {}"
 log "launchpad $LAUNCHPAD"
 extend_code "$(shasum -a 256 "$WASM_DIR/launchpad.wasm" | cut -c1-64)"
 

@@ -69,6 +69,16 @@ export async function balanceOf(tokenId: string, account: string): Promise<bigin
   return (await token(tokenId).balance({ account })).result;
 }
 
+/** The meme's bond that `holder` can claim as dividends now (not counting `div_pending`). */
+export async function fetchClaimable(meme: string, holder: string): Promise<bigint> {
+  return (await token(meme).claimable({ holder })).result;
+}
+
+/** Memes held outside the launchpad, the token and the meme's pools: what dividends split over. */
+export async function fetchTotalShares(meme: string): Promise<bigint> {
+  return (await token(meme).total_shares()).result;
+}
+
 /**
  * Whether `account` can hold the classic `asset` (`CODE:ISSUER`). Contract accounts always
  * can; a G account needs a trustline, and one not created yet has none.
@@ -134,6 +144,10 @@ export const calls = {
   }),
   migrate: (meme: string): Call => ({ contractId: LAUNCHPAD_ID, method: "migrate", args: [addr(meme)] }),
   buyback: (meme: string): Call => ({ contractId: LAUNCHPAD_ID, method: "buyback", args: [addr(meme)] }),
+  /** Sends the meme's pending dividends to its token, which spreads them over the holders. */
+  distribute: (meme: string): Call => ({ contractId: LAUNCHPAD_ID, method: "distribute", args: [addr(meme)] }),
+  /** Pays `holder` its dividends in the meme's bond. Anyone can send it; the bond goes to `holder`. */
+  claim: (meme: string, holder: string): Call => ({ contractId: meme, method: "claim", args: [addr(holder)] }),
   /** Swaps exactly `amountIn` of `from` for at least `minOut` of `to` in their Soroswap pool. */
   swap: (trader: string, from: string, to: string, amountIn: bigint, minOut: bigint): Call => ({
     contractId: AMM_ROUTER,

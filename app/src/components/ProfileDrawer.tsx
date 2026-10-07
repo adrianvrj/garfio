@@ -227,6 +227,8 @@ export function ProfileDrawer({ address, onClose: onClosed }: { address: string;
           )}
         </div>
 
+        <Link href="/dividends" className="btn block" onClick={onClose}>Ver tus dividendos</Link>
+
         <div className="stack" style={{ gap: 6 }}>
           <span className="section-title">Bonos</span>
           <div className="list">

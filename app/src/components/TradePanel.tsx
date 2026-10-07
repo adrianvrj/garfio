@@ -242,7 +242,7 @@ export function TradePanel({
             </b>
           </div>
           <div><span>Impacto en precio</span><span className="num">{shown ? (shown.impact >= 0 ? "+" : "") + fmt(shown.impact, 2) + "%" : "–"}</span></div>
-          <div><span>{inPool ? "Fee 0.3% de Soroswap" : "Fee 1% (½ creador · ¼ vault · ¼ protocolo)"}</span><span className="num">{shown ? `${fmt(shown.fee, pair.decimals)} ${pair.symbol}` : "–"}</span></div>
+          <div><span>{inPool ? "Fee 0.3% de Soroswap" : "Fee 1% (½ creador · ¼ vault y holders · ¼ protocolo)"}</span><span className="num">{shown ? `${fmt(shown.fee, pair.decimals)} ${pair.symbol}` : "–"}</span></div>
           <div>
             <span>Slippage máx.</span>
             <span className="chips" role="group" aria-label="Slippage máximo">

@@ -2,11 +2,13 @@
 //! Garfio launchpad: memecoins whose bonding-curve reserve is a tokenized RWA.
 //! Each meme picks its pair (tCETES, tUSTRY, tTESOURO…) from an admin allowlist. When the
 //! curve sells out, anyone can migrate its reserve to a Soroswap pool with locked liquidity.
-//! A quarter of every fee goes to the meme's vault, which buys the meme back and burns it.
+//! A quarter of every fee goes to the meme's vault. Part of it (`div_bps`) is paid to the meme's
+//! holders as dividends in the pair; the rest buys the meme back and burns it.
 
 mod amm;
 mod curve;
 mod events;
+mod meme;
 mod storage;
 
 use soroban_sdk::{
@@ -16,6 +18,7 @@ use soroban_sdk::{
 
 pub use storage::{Curve, PairCfg, Position};
 use amm::{FactoryClient, PairClient};
+use meme::MemeClient;
 use curve::{FOR_POOL, FOR_SALE, SUPPLY, V_TOKEN0};
 
 #[contracterror]
@@ -37,6 +40,7 @@ pub enum Error {
     // 13 and 14 are left out: the Stellar asset contracts of the pairs raise them, and the app reads both.
     NotMigrated = 15,
     VaultEmpty = 16,
+    NothingToDistribute = 17,
 }
 
 /// Most of a pool's pair reserve one `buyback` spends: small enough that sandwiching it costs
@@ -52,6 +56,13 @@ fn load(e: &Env, meme: &Address) -> Curve {
 
 fn add_protocol_fee(e: &Env, pair: &Address, fee: i128) {
     storage::set_protocol_fees(e, pair, storage::protocol_fees(e, pair) + fee);
+}
+
+/// Splits pair bound for the meme's vault: `div_bps` of it is owed to the holders.
+fn add_to_vault(e: &Env, c: &mut Curve, amount: i128) {
+    let div = amount * storage::div_bps(e) / 10_000;
+    c.div_pending += div;
+    c.vault += amount - div;
 }
 
 /// (memes out, pair actually charged, fee). Caps the fill at what is left for sale.
@@ -115,7 +126,7 @@ fn fill_buy(e: &Env, buyer: Address, meme: Address, pair_in: i128, min_out: i128
     c.real_pair += net;
     c.sold += out;
     c.fees_creator += fee_c;
-    c.vault += fee_v;
+    add_to_vault(e, &mut c, fee_v);
     add_protocol_fee(e, &c.pair, fee_p);
     if c.sold == FOR_SALE {
         c.graduated = true;
@@ -163,10 +174,15 @@ fn close_position(e: &Env, seller: &Address, meme: &Address, amount: i128, out: 
 
 #[contractimpl]
 impl Launchpad {
-    pub fn __constructor(e: Env, admin: Address, meme_wasm: BytesN<32>, amm_factory: Address) {
+    /// `div_bps` is the part of every vault inflow paid to the meme's holders as dividends.
+    pub fn __constructor(e: Env, admin: Address, meme_wasm: BytesN<32>, amm_factory: Address, div_bps: u32) {
+        if div_bps > 10_000 {
+            panic_with_error!(&e, Error::InvalidAmount);
+        }
         storage::set_admin(&e, &admin);
         storage::set_meme_wasm(&e, &meme_wasm);
         storage::set_amm_factory(&e, &amm_factory);
+        storage::set_div_bps(&e, div_bps as i128);
     }
 
     // ---------- admin ----------
@@ -235,9 +251,12 @@ impl Launchpad {
         let token = e
             .deployer()
             .with_current_contract(salt)
-            .deploy_v2(storage::meme_wasm(&e), (this, name.clone(), symbol.clone(), SUPPLY));
+            .deploy_v2(
+                storage::meme_wasm(&e),
+                (this, name.clone(), symbol.clone(), SUPPLY, pair.clone(), storage::amm_factory(&e)),
+            );
 
-        let c = Curve {
+        let mut c = Curve {
             token: token.clone(),
             pair: pair.clone(),
             creator: creator.clone(),
@@ -248,12 +267,14 @@ impl Launchpad {
             real_pair: 0,
             sold: 0,
             fees_creator: 0,
-            vault: cfg.create_fee,
+            vault: 0,
+            div_pending: 0,
             burned: 0,
             created_at: e.ledger().timestamp(),
             graduated: false,
             pool: None,
         };
+        add_to_vault(&e, &mut c, cfg.create_fee);
         storage::set_curve(&e, &token, &c);
         storage::push_meme(&e, &token);
         storage::bump_instance(&e);
@@ -301,7 +322,7 @@ impl Launchpad {
         c.real_pair -= gross;
         c.sold -= amount;
         c.fees_creator += fee_c;
-        c.vault += fee_v;
+        add_to_vault(&e, &mut c, fee_v);
         add_protocol_fee(&e, &c.pair, fee_p);
         storage::set_curve(&e, &meme, &c);
         storage::bump_instance(&e);
@@ -363,6 +384,8 @@ impl Launchpad {
         } else {
             factory.create_pair(&meme, &c.pair)
         };
+        // the pool holds memes from here on and must not earn dividends on them
+        MemeClient::new(&e, &meme).exclude_pool(&c.pair);
         let this = e.current_contract_address();
         let pc = PairClient::new(&e, &pool);
         let memes = TokenClient::new(&e, &meme);
@@ -410,7 +433,7 @@ impl Launchpad {
             memes.burn(&this, &burn);
             c.burned += burn;
         }
-        c.vault += pair_left - pair_amt;
+        add_to_vault(&e, &mut c, pair_left - pair_amt);
         c.real_pair = 0;
         c.pool = Some(pool.clone());
         storage::set_curve(&e, &meme, &c);
@@ -446,7 +469,28 @@ impl Launchpad {
         out
     }
 
+    /// Sends the meme's pending dividends to its token, which spreads them over the holders.
+    /// Anyone can call it.
+    pub fn distribute(e: Env, meme: Address) -> i128 {
+        let mut c = load(&e, &meme);
+        let amount = c.div_pending;
+        if amount <= 0 {
+            panic_with_error!(&e, Error::NothingToDistribute);
+        }
+        c.div_pending = 0;
+        storage::set_curve(&e, &meme, &c);
+        storage::bump_instance(&e);
+        TokenClient::new(&e, &c.pair).transfer(&e.current_contract_address(), &meme, &amount);
+        MemeClient::new(&e, &meme).notify(&amount);
+        events::Distribute { meme, pair_amt: amount }.publish(&e);
+        amount
+    }
+
     // ---------- views ----------
+
+    pub fn div_bps(e: Env) -> u32 {
+        storage::div_bps(&e) as u32
+    }
 
     pub fn amm_factory(e: Env) -> Address {
         storage::amm_factory(&e)
