@@ -2,7 +2,7 @@
 
 import { artSeed } from "@/lib/avatar";
 import { useParams } from "next/navigation";
-import { useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { balanceOf, fetchHolders, fetchMeme, fetchMemeTrades, fetchPool } from "@/lib/chain";
 import { contractUrl, LAUNCHPAD_ID, pairById, txUrl } from "@/lib/config";
 import { gradProgress, gradTarget, openingPrice, SUPPLY, FOR_SALE } from "@/lib/curve";
@@ -20,6 +20,41 @@ import { DividendPanel } from "@/components/DividendPanel";
 import { Progress } from "@/components/Progress";
 import { FavoriteButton } from "@/components/TokenCard";
 import { YieldBadge } from "@/components/YieldBadge";
+
+/**
+ * Phones stack the trade coupon under the chart: this bar keeps the trade one tap away while the
+ * coupon is off screen, and steps aside once it scrolls into view.
+ */
+function TradeDock({ symbol, price, change }: { symbol: string; price: string; change?: number }) {
+  const dock = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const coupon = document.getElementById("trade");
+    if (!coupon || !dock.current) return;
+    const el = dock.current;
+    const io = new IntersectionObserver(([e]) => el.toggleAttribute("data-hidden", e.isIntersecting));
+    io.observe(coupon);
+    return () => io.disconnect();
+  }, []);
+  return (
+    <div className="trade-dock" ref={dock} data-hidden>
+      <span className="trade-dock-quote">
+        <b>${symbol}</b>
+        <span className="num">
+          ${price} {change !== undefined && <span className={change >= 0 ? "buy" : "sell"}>{pct(change)}</span>}
+        </span>
+      </span>
+      <button
+        className="btn primary"
+        onClick={() => {
+          const smooth = !matchMedia("(prefers-reduced-motion: reduce)").matches;
+          document.getElementById("trade")?.scrollIntoView({ block: "center", behavior: smooth ? "smooth" : "auto" });
+        }}
+      >
+        Comprar · vender
+      </button>
+    </div>
+  );
+}
 
 export default function CoinPage() {
   const { id } = useParams<{ id: string }>();
@@ -322,6 +357,7 @@ export default function CoinPage() {
         </div>
       </aside>
     </div>
+    {!m.graduated || m.pool ? <TradeDock symbol={m.symbol} price={tiny(priceUsd)} change={day?.change} /> : null}
     </>
   );
 }

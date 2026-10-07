@@ -8,7 +8,6 @@ import { artSeed } from "@/lib/avatar";
 import { explain } from "@/lib/errors";
 import { fmt, fromUnits, toUnits } from "@/lib/units";
 import { useWallet } from "@/lib/wallet/WalletProvider";
-import { useListedPairs } from "@/hooks/useListedPairs";
 import { useTx } from "@/hooks/useTx";
 import { TokenArt } from "@/components/Art";
 import { Identity } from "@/components/Identity";
@@ -20,7 +19,6 @@ export default function Create() {
   const router = useRouter();
   const w = useWallet();
   const tx = useTx();
-  const listed = useListedPairs();
   const [name, setName] = useState("");
   const [symbol, setSymbol] = useState("");
   const [pair, setPair] = useState(PAIRS[0].id);
@@ -54,7 +52,7 @@ export default function Create() {
 
   return (
     <div className="create">
-      <form className="stack coupon" data-label="Aviso clasificado · llene a mano" style={{ gap: 18, padding: "28px 24px 24px" }} onSubmit={submit}>
+      <form className="stack coupon" data-label="Aviso clasificado · llene a mano" style={{ gap: 18 }} onSubmit={submit}>
         <div className="stack" style={{ gap: 6 }}>
           <span className="kicker">Clasificados · Nuevas emisiones</span>
           <h1>Publica tu meme</h1>
@@ -74,7 +72,8 @@ export default function Create() {
         <div className="field">
           <span>Respaldo de la reserva</span>
           <div className="pair-pick" role="radiogroup">
-            {listed.map((x) => (
+            {/* Every bond the launchpad takes, even one the faucet has run out of: the creator may already hold it. */}
+            {PAIRS.map((x) => (
               <button
                 key={x.id}
                 type="button"

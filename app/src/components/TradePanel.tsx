@@ -207,7 +207,7 @@ export function TradePanel({
 
   return (
     <>
-      <div className="panel stack coupon" data-label={`Recorte y opere $${meme.symbol}`}>
+      <div className="panel stack coupon" id="trade" data-label={`Recorte y opere $${meme.symbol}`}>
         {meme.pool && (
           <p className="small ink2">
             Graduada: se opera en su pool de Soroswap, con la liquidez bloqueada para siempre.{" "}

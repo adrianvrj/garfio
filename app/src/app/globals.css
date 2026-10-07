@@ -34,6 +34,7 @@
   --z-toast: 50;
 
   --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
   --press: scale(.97);
   color-scheme: light;
 }
@@ -56,6 +57,7 @@ a, button, label, [role="button"] { touch-action: manipulation; }
 .buy { color: var(--up); font-weight: 600; }
 .sell { color: var(--down); font-weight: 600; }
 .err { color: var(--red); font-family: var(--sans); font-size: .75rem; min-height: 1.2em; }
+.err:empty { min-height: 0; }
 .small { font-size: .8125rem; }
 .row { display: flex; align-items: center; gap: 8px; }
 .between { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
@@ -100,6 +102,7 @@ textarea.input { height: auto; padding: 8px 10px; resize: vertical; min-height: 
 .input.big { height: 3.25rem; font-size: 1.5rem; font-weight: 600; }
 .field { display: grid; gap: 6px; }
 .field > span { font-family: var(--sans); font-weight: 700; font-size: .6875rem; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-2); }
+.field > span.small { font-weight: 400; font-size: .75rem; letter-spacing: 0; text-transform: none; color: var(--muted); }
 
 .chips { display: flex; gap: 6px; flex-wrap: wrap; }
 .chip { border-radius: 0; transition: transform .25s var(--ease), background .15s var(--ease), color .15s var(--ease); height: 1.75rem; padding: 0 10px; border: 1px solid var(--edge); background: transparent; cursor: pointer; font-family: var(--sans); font-weight: 600; font-size: .6875rem; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-2); }
@@ -136,6 +139,8 @@ textarea.input { height: auto; padding: 8px 10px; resize: vertical; min-height: 
   transform: var(--press); transition-duration: 0s;
 }
 .pair-opt:active, .option:active { background: var(--panel); transition-duration: 0s; }
+/* Touch has no hover: the headline underlines under the finger instead. */
+.card:active h3, .king:active .lead-head, .ear:active b, .agate a:active, .act:active b { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 3px; }
 @media (hover: hover) {
   .btn:hover { background: var(--ink); color: var(--bg); }
   .btn.primary:hover, .btn.buy-btn:hover { background: var(--red); border-color: var(--red); }
@@ -157,10 +162,11 @@ textarea.input { height: auto; padding: 8px 10px; resize: vertical; min-height: 
 .header { position: sticky; top: 0; z-index: var(--z-sticky); transition: transform .3s var(--ease); background: var(--bg); border-bottom: 1.5px solid var(--ink); }
 .header-inner { max-width: 1240px; margin: 0 auto; padding: 8px 20px; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 16px; align-items: center; }
 .logo { display: inline-flex; align-items: center; gap: 8px; font-family: var(--display); font-size: 1.5rem; line-height: 1; text-transform: uppercase; letter-spacing: .01em; }
-.logo > span { display: inline-block; transform: skewX(-9deg); }
+.logo > span { display: inline-block; transform: skewX(-9deg); white-space: nowrap; }
 .logo svg { height: 1.1em; width: auto; flex: none; padding: .12em .16em; background: var(--red); color: var(--bg); box-sizing: content-box; }
 .search { position: relative; max-width: 420px; width: 100%; justify-self: center; }
 .search .input { padding-left: 32px; border-bottom-width: 1px; }
+.search-open, .search-cancel { display: none; }
 .search svg { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: var(--muted); }
 .header-actions { display: flex; gap: 8px; align-items: center; }
 .wallet-chip { border-radius: 0; transition: background .15s var(--ease), transform .25s var(--ease); display: inline-flex; align-items: center; gap: 8px; height: 2.25rem; padding: 0 12px 0 4px; border: 1.5px solid var(--ink); background: transparent; cursor: pointer; font-family: var(--sans); font-weight: 600; font-size: .75rem; }
@@ -280,7 +286,13 @@ textarea.input { height: auto; padding: 8px 10px; resize: vertical; min-height: 
 .price-chart figcaption b { color: var(--ink); text-transform: uppercase; letter-spacing: .08em; font-size: .625rem; }
 .chart { width: 100%; min-width: 0; overflow: hidden; height: 340px; border-top: 1px solid var(--ink); border-bottom: 1px solid var(--ink); }
 /* Wide tables scroll inside their box instead of dragging the whole page sideways. */
-.table-wrap { overflow-x: auto; overscroll-behavior-x: contain; }
+/* The shadows show only on a side with more to scroll: the newsprint covers them at either end. */
+.table-wrap { overflow-x: auto; overscroll-behavior-x: contain;
+  background:
+    linear-gradient(to right, var(--bg) 40%, rgb(242 237 228 / 0)) left / 32px 100% no-repeat local,
+    linear-gradient(to left, var(--bg) 40%, rgb(242 237 228 / 0)) right / 32px 100% no-repeat local,
+    linear-gradient(to right, rgb(22 20 18 / .16), rgb(22 20 18 / 0)) left / 12px 100% no-repeat scroll,
+    linear-gradient(to left, rgb(22 20 18 / .16), rgb(22 20 18 / 0)) right / 12px 100% no-repeat scroll; }
 .table { width: 100%; border-collapse: collapse; font-family: var(--sans); font-size: .8125rem; font-variant-numeric: tabular-nums; }
 .table th, .table td { white-space: nowrap; }
 .table th { text-align: left; font-weight: 700; color: var(--ink-2); padding: 8px 8px 6px; border-bottom: 1.5px solid var(--ink); font-size: .5625rem; letter-spacing: .1em; text-transform: uppercase; }
@@ -301,6 +313,7 @@ textarea.input { height: auto; padding: 8px 10px; resize: vertical; min-height: 
 .quote { display: grid; gap: 0; font-family: var(--sans); font-size: .75rem; border-top: 1.5px solid var(--ink); }
 .quote > div { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 5px 0; border-bottom: 1px dotted var(--edge); }
 .quote span:first-child { color: var(--ink-2); }
+.quote > div > :last-child { white-space: nowrap; text-align: right; }
 
 .split { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border-top: 1.5px solid var(--ink); border-bottom: 1px solid var(--ink); }
 .split.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -356,9 +369,9 @@ textarea.input { height: auto; padding: 8px 10px; resize: vertical; min-height: 
 
 /* ---------- modal (login): the subscription card ---------- */
 .modal-bg { position: fixed; inset: 0; z-index: var(--z-modal-bg); background: rgb(22 20 18 / .35); display: grid; place-items: center; padding: 16px; opacity: 0; transition: opacity .2s var(--ease); }
-.modal { z-index: var(--z-modal); background: var(--bg); border: 2px solid var(--ink); outline: 1px solid var(--ink); outline-offset: -7px; padding: 24px; width: min(420px, 100%); display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; transform: scale(.9); transition: transform .3s var(--ease); }
+.modal { z-index: var(--z-modal); background: var(--bg); border: 2px solid var(--ink); outline: 1px solid var(--ink); outline-offset: -7px; padding: 24px; width: min(420px, 100%); display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; transform: scale(.95); transition: transform .2s var(--ease); }
 .modal-bg[data-open] { opacity: 1; }
-.modal-bg[data-open] .modal { transform: none; }
+.modal-bg[data-open] .modal { transform: none; transition-duration: .3s; }
 .modal h3 { font-family: var(--display); font-weight: 400; text-transform: uppercase; font-size: 2.25rem; line-height: .95; letter-spacing: .005em; }
 /* Same ruled list as the reserve picker on /create: one row per way in. */
 .options { display: grid; border-top: 1.5px solid var(--ink); }
@@ -369,6 +382,7 @@ textarea.input { height: auto; padding: 8px 10px; resize: vertical; min-height: 
 
 /* ---------- create: the classifieds ---------- */
 .create { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 32px; margin-top: 20px; align-items: start; }
+.create > .coupon { padding: 28px 24px 24px; }
 .create h1 { font-family: var(--display); font-weight: 400; text-transform: uppercase; font-size: clamp(2.5rem, 6vw, 4rem); line-height: .9; }
 .pair-pick { display: grid; border-top: 1.5px solid var(--ink); }
 .pair-opt { display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: center; padding: 12px 4px; border: 0; border-bottom: 1px solid var(--line); cursor: pointer; background: transparent; text-align: left; }
@@ -396,41 +410,88 @@ textarea.input { height: auto; padding: 8px 10px; resize: vertical; min-height: 
 .fine-print { display: grid; gap: 6px; font-family: var(--sans); font-size: .75rem; line-height: 1.4; color: var(--ink-2); }
 .fine-print > span::before { content: "■ "; color: var(--red); font-size: .6em; vertical-align: .15em; }
 
+/* ---------- trade dock: the coupon one tap away on a stacked coin page ---------- */
+.trade-dock { display: none; }
+
 @media (max-width: 960px) {
+  .trade-dock { position: fixed; left: 0; right: 0; bottom: 0; z-index: var(--z-sticky); display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 16px calc(10px + env(safe-area-inset-bottom)); background: var(--bg); border-top: 1.5px solid var(--ink); transition: transform .3s var(--ease-drawer), visibility 0s; }
+  /* Leaves faster than it arrives; hidden, it drops out of the tab order too. */
+  .trade-dock[data-hidden] { transform: translateY(100%); visibility: hidden; transition: transform .2s var(--ease), visibility 0s .2s; }
+  .trade-dock-quote { display: grid; min-width: 0; font-family: var(--sans); font-size: .75rem; }
+  .trade-dock-quote b { font-family: var(--display); font-weight: 400; font-size: 1.25rem; line-height: 1.05; text-transform: uppercase; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .trade-dock .btn { flex: none; }
+  body:has(.trade-dock) .footer { padding-bottom: 96px; }
   .coin, .create, .front, .dividends { grid-template-columns: 1fr; }
   .coin { grid-template-rows: none; grid-template-areas: "main" "side" "activity"; }
   .coin-main { border-right: 0; padding: 0 0 16px; }
   .coin-activity { border-right: 0; padding-right: 0; }
   .coin-side { position: static; padding: 0 0 8px; }
   .front-main { padding-right: 0; border-right: 0; }
-  .rail { padding: 24px 0 0; border-top: 3px solid var(--ink); grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 24px; }
+  /* Each rail section brings its own rule; a second one above would double it. */
+  .rail { padding: 8px 0 0; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 24px; }
   .king { grid-template-columns: 1fr; grid-template-areas: "banner" "photo" "copy"; }
   .banner { white-space: normal; }
   .king-copy { padding-left: 0; border-left: 0; }
 }
 @media (max-width: 640px) {
   .wrap { padding: 0 16px 64px; }
-  .header-inner { grid-template-columns: auto auto; padding: 8px 16px; gap: 8px 12px; }
-  .logo { font-size: 1.25rem; }
+  /* One bar: the flag, then search, create and the reader. The search opens over the whole bar. */
+  .header-inner { grid-template-columns: minmax(0, 1fr) auto; padding: 6px 16px; gap: 10px; }
+  .logo { font-size: clamp(.95rem, 4.6vw, 1.25rem); }
+  .header-actions { gap: 4px; }
+  .header-actions .btn { padding: 0 10px; }
+  .search { display: none; }
+  .search-open { display: grid; place-items: center; width: 2.5rem; height: 2.5rem; padding: 0; border: 0; background: transparent; color: var(--ink); cursor: pointer; transition: transform .16s var(--ease); }
+  .search-open:active { transform: var(--press); transition-duration: 0s; }
+  .header[data-search] .logo, .header[data-search] .header-actions { display: none; }
+  .header[data-search] .search { display: flex; align-items: center; gap: 12px; grid-column: 1 / -1; max-width: none; transition: opacity .2s var(--ease), transform .2s var(--ease);
+    @starting-style { opacity: 0; transform: translateY(-4px); } }
+  .search-cancel { display: inline-flex; flex: none; padding: 10px 0; border: 0; background: transparent; cursor: pointer; font-family: var(--sans); font-weight: 700; font-size: .6875rem; letter-spacing: .08em; text-transform: uppercase; color: var(--ink); }
+  /* The reader is a portrait, not a button box: a ringed circle like the bylines'. */
+  .wallet-chip { width: 2.5rem; padding: 0; justify-content: center; border-color: transparent; }
+  .wallet-chip img { box-shadow: 0 0 0 1.5px var(--bg), 0 0 0 3px var(--ink); }
   /* Scrolling down hands the screen to the content; scrolling up brings the header back. */
   .header[data-hidden] { transform: translateY(-100%); }
   .header[data-hidden]:focus-within { transform: none; }
-  .ears { gap: 8px; }
+  /* A lone ear takes the row instead of half of it. */
+  .ears { grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 8px; }
   .ear b { font-size: 1rem; padding: 4px 6px; }
   .flag-word { text-shadow: -1px -1px 0 var(--ink), 1px -1px 0 var(--ink), -1px 1px 0 var(--ink), 2px 2px 0 var(--ink); }
-  .edition > span:not(:last-child)::after { margin-left: 10px; }
-  .edition { gap: 2px 10px; }
+  /* Wrapped, the slashes would dangle at the line ends: the gaps separate instead. */
+  .edition > span:not(:last-child)::after { content: none; }
+  .edition { justify-content: flex-start; gap: 2px 14px; }
   .lead-head { right: 18px; font-size: 1.375rem; }
   .special { width: 240px; right: -66px; bottom: 22px; font-size: .9375rem; }
-  .coin-head { grid-template-columns: 1fr; }
+  /* The photo shrinks beside the ticker so the headline and the numbers make the first screen. */
+  .coin-head { grid-template-columns: 88px minmax(0, 1fr); gap: 4px 14px; }
+  .coin-head > :first-child { width: 88px !important; height: 88px !important; grid-row: 1 / span 2; }
+  .coin-head > .stack { display: contents; }
+  .coin-head .kicker { grid-column: 2; grid-row: 1; align-self: end; }
+  .coin-head h1 { grid-column: 2; grid-row: 2; font-size: clamp(2.25rem, 11vw, 3rem); }
+  .coin-head .deck, .coin-head .byline { grid-column: 1 / -1; }
+  .coin-head .deck { margin-top: 8px; }
+  .coin-stats .v .buy, .coin-stats .v .sell { display: block; line-height: 1.3; }
+  .table th, .table td { padding-inline: 6px; }
+  /* One column: no rules between columns, and the stories run edge to edge. */
+  .grid { margin-left: 0; clip-path: none; }
+  .card-cell { padding: 0 0 20px; border-left: 0; }
+  .card-cell .star { right: 6px; }
+  .card img, .card .art-none, .card .art-blank { aspect-ratio: 3 / 2 !important; }
+  /* Sections and filters each keep one line and scroll sideways, bleeding to the screen's edge. */
+  .toolbar { display: grid; gap: 2px; }
+  .toolbar > *, .toolbar .chips { flex-wrap: nowrap; }
+  .toolbar > * { overflow-x: auto; scrollbar-width: none; margin-inline: -16px; padding-inline: 16px; scroll-padding-inline: 16px; overscroll-behavior-x: contain; }
+  .toolbar > *::-webkit-scrollbar { display: none; }
+  .toolbar .chip { flex: none; }
+  .create > .coupon { padding: 24px 16px 20px; }
+  .create, .dividends { gap: 24px; }
   .chart { height: 260px; }
   /* The login becomes a sheet from the bottom edge, within reach of the thumb. */
   .modal-bg { place-items: end stretch; padding: 0; }
   /* Swiped down to dismiss (useSwipeSheet): the grabber says it can be, and the page must not scroll under the finger. */
-  .modal { position: relative; width: 100%; border-width: 2px 0 0; outline: 0; padding-top: 28px; padding-bottom: calc(20px + env(safe-area-inset-bottom)); transform: translateY(100%); touch-action: none; }
+  .modal { position: relative; width: 100%; border-width: 2px 0 0; outline: 0; padding-top: 28px; padding-bottom: calc(20px + env(safe-area-inset-bottom)); transform: translateY(100%); transition-timing-function: var(--ease-drawer); touch-action: none; }
   .modal::before { content: ""; position: absolute; top: 10px; left: 50%; width: 36px; height: 4px; margin-left: -18px; background: var(--edge); }
   .drawer { padding-bottom: calc(20px + env(safe-area-inset-bottom)); }
-  .search { grid-column: 1 / -1; grid-row: 2; max-width: none; }
   .coin-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .coin-stats > div:nth-child(2) { border-right: 0; }
   .coin-stats > div:nth-child(3) { padding-left: 0; }
@@ -455,6 +516,7 @@ textarea.input { height: auto; padding: 8px 10px; resize: vertical; min-height: 
   .chip { height: 2.25rem; padding: 0 12px; }
   .toolbar .chip { height: 2.25rem; }
   .copy { padding: 6px 0; }
+  .agate td { padding-block: 9px; }
   .tabs button { padding: 14px 16px 10px; }
 }
 /* Reduced motion keeps cross-fades and color changes; it drops slides, scaling and loops. */
@@ -462,7 +524,9 @@ textarea.input { height: auto; padding: 8px 10px; resize: vertical; min-height: 
   *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; }
   .activity-viewport { overflow-x: auto; }
   .activity-track { animation: none; }
-  .modal, .modal-bg[data-open] .modal, .header[data-hidden] { transform: none; }
+  .modal, .modal-bg[data-open] .modal, .header[data-hidden], .trade-dock[data-hidden], .header[data-search] .search { transform: none; }
+  .trade-dock { transition: opacity .2s var(--ease), visibility 0s; }
+  .trade-dock[data-hidden] { opacity: 0; transition: opacity .2s var(--ease), visibility 0s .2s; }
   .drawer { transform: none; opacity: 0; }
   .progress > i, .seg::before, .tabs[data-ink]::after { transition: none; }
   .btn:not([disabled]):active, .chip:active, .wallet-chip:active, .copy:active, .seg button:active { transform: none; }

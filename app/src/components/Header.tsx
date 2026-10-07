@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
+import { createPortal, flushSync } from "react-dom";
 import { IS_MAINNET } from "@/lib/config";
 import { useWallet } from "@/lib/wallet/WalletProvider";
 import { useProfile } from "@/lib/profile";
@@ -28,6 +28,9 @@ export function Header() {
   const [err, setErr] = useState("");
   const loginView = usePresence(login, 220);
   const loginSheetRef = useSwipeSheet<HTMLDivElement>(loginView.mounted, login, () => setLogin(false));
+  // Phones fold the search into a button; opened, the field takes the whole bar.
+  const [searching, setSearching] = useState(false);
+  const field = useRef<HTMLInputElement>(null);
   const trigger = useRef<HTMLButtonElement>(null);
   const bar = useRef<HTMLElement>(null);
 
@@ -62,7 +65,7 @@ export function Header() {
   };
 
   return (
-    <header className="header" ref={bar}>
+    <header className="header" ref={bar} data-search={searching || undefined}>
       <div className="header-inner">
         <Link href="/" className="logo">
           <Logo />
@@ -76,6 +79,8 @@ export function Header() {
             e.preventDefault();
             const q = new FormData(e.currentTarget).get("q")?.toString().trim();
             router.push(q ? `/?q=${encodeURIComponent(q)}` : "/");
+            field.current?.blur();
+            setSearching(false);
           }}
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true">
@@ -83,21 +88,38 @@ export function Header() {
             <path d="m20 20-3.5-3.5" />
           </svg>
           <input
+            ref={field}
             key={params.get("q") ?? ""}
             name="q"
             className="input"
-            placeholder="Buscar memes por nombre o ticker"
+            placeholder="Busca un meme o ticker"
             defaultValue={params.get("q") ?? ""}
             aria-label="Buscar"
+            onKeyDown={(e) => e.key === "Escape" && setSearching(false)}
           />
+          <button type="button" className="search-cancel" onClick={() => setSearching(false)}>Cancelar</button>
         </form>
 
         <div className="header-actions">
+          <button
+            className="search-open"
+            aria-label="Buscar"
+            onClick={() => {
+              // Rendered and focused inside the tap, or iOS won't raise the keyboard.
+              flushSync(() => setSearching(true));
+              field.current?.focus();
+            }}
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true">
+              <circle cx="11" cy="11" r="7" />
+              <path d="m20 20-3.5-3.5" />
+            </svg>
+          </button>
           {w.address && !IS_MAINNET && (
-            <button className="btn" onClick={() => openDeposit()}>Depositar</button>
+            <button className="btn hide-sm" onClick={() => openDeposit()}>Depositar</button>
           )}
           {w.address && <Link href="/dividends" className="btn hide-sm">Dividendos</Link>}
-          <Link href="/create" className="btn primary">Crear moneda</Link>
+          <Link href="/create" className="btn primary">Crear<span className="hide-sm">&nbsp;moneda</span></Link>
           {w.address ? (
             <button className="wallet-chip" onClick={() => setDrawer(w.address)} aria-label="Abrir perfil">
               <UserAvatar address={w.address} image={profile.image} size={28} />
