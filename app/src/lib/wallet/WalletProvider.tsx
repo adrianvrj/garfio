@@ -49,7 +49,7 @@ function CavosBridge({
   // A device that still needs approval is signed in all the same: the account shows, and a trade
   // explains what is missing (see ready()). Cavos's walletStatus.needsDeviceApproval also flips
   // every few seconds while the wallet sits in that state, so gating on it blinked the session.
-  const { wallet, address, openModal, logout, isLoading } = useCavos();
+  const { wallet, address, openModal, logout, isLoading, authorizeDevice } = useCavos();
   const current = useRef(wallet);
 
   useEffect(() => {
@@ -60,7 +60,17 @@ function CavosBridge({
       for (let i = 0; i < 75 && !current.current; i++) await new Promise((r) => setTimeout(r, 200));
       const wallet = current.current;
       if (!wallet || wallet.chain !== "stellar") throw new Oops("cavosNotConnected");
-      if (wallet.status === "needs-device-approval") throw new Oops("cavosApprove");
+      if (wallet.status === "needs-device-approval") {
+        // The key lives on the device that created the wallet. Cavos restores it here through the
+        // enclave it was sealed in; that needs a fresh sign-in, and a seal made on that device.
+        try {
+          await authorizeDevice();
+        } catch (e) {
+          if (/no recovery set up|no sealed recovery/i.test(e instanceof Error ? e.message : "")) throw new Oops("cavosNoRecovery");
+          throw e;
+        }
+        if (current.current?.status === "needs-device-approval") throw new Oops("cavosApprove");
+      }
       // The first execute creates the account (sponsored).
       if (wallet.status === "undeployed") await wallet.execute(1n, wallet.address).catch(() => {});
       return wallet;
@@ -238,7 +248,9 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   return (
     <CavosProvider
       key={cavosMount}
-      config={{ appId: CAVOS_APP_ID, environment: CAVOS_ENV, chains: ["stellar"], network: NETWORK, appSalt: "garfio" }}
+      // socialRecovery: each wallet's key is sealed in Cavos's attested enclave, so signing in on a
+      // new device restores it. The environment must have it enabled in the Cavos dashboard too.
+      config={{ appId: CAVOS_APP_ID, environment: CAVOS_ENV, chains: ["stellar"], network: NETWORK, appSalt: "garfio", socialRecovery: true }}
       modal={{ appName: "Hooks" }}
     >
       <CavosBridge apiRef={cavos} onAddress={onCavosAddress} />
